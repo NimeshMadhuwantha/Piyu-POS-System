@@ -1,0 +1,2 @@
+"use client";
+import {useParams} from "next/navigation";import {useOrders} from "@/hooks/use-data";import {OrderForm} from "@/components/order-form";export default function EditOrder(){const{id}=useParams<{id:string}>();const{orders,loading}=useOrders();const order=orders.find(o=>o.id===id);if(loading)return <div>Loading…</div>;if(!order)return <div className="card">Order not found.</div>;return <><div className="page-head"><div><h1>Edit order</h1><span className="muted">{order.orderCode}</span></div></div><OrderForm existing={order}/></>}

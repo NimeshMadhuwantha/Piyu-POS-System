@@ -1,0 +1,1 @@
+{"indexes":[{"collectionGroup":"orders","queryScope":"COLLECTION","fields":[{"fieldPath":"orderStatus","order":"ASCENDING"},{"fieldPath":"createdAtClient","order":"DESCENDING"}]},{"collectionGroup":"orderLogs","queryScope":"COLLECTION","fields":[{"fieldPath":"orderId","order":"ASCENDING"},{"fieldPath":"clientTimestamp","order":"DESCENDING"}]}],"fieldOverrides":[]}

@@ -1,0 +1,40 @@
+{
+  "name": "piyu-pos-system",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "latest",
+    "date-fns": "latest",
+    "firebase": "latest",
+    "jspdf": "latest",
+    "jspdf-autotable": "latest",
+    "lucide-react": "latest",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "react-hook-form": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "latest",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "autoprefixer": "latest",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "latest",
+    "postcss": "latest",
+    "tailwindcss": "latest",
+    "typescript": "^6.0.3",
+    "vitest": "latest"
+  }
+}
