@@ -1,0 +1,1 @@
+import {OrderForm} from "@/components/order-form";export default function NewOrder(){return <><div className="page-head"><div><h1>New Order</h1><span className="muted">Client, items, shipping and payment in one order</span></div></div><OrderForm/></>}
