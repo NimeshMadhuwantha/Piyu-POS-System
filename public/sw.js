@@ -1,4 +1,4 @@
-const CACHE="piyu-pos-shell-v2";
+const CACHE="piyu-pos-shell-v3";
 const SHELL=["/","/dashboard","/orders","/orders/new","/customers","/logs","/reports","/settings","/manifest.webmanifest"];
 self.addEventListener("install",event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).catch(()=>undefined));self.skipWaiting()});
 self.addEventListener("activate",event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim()});
