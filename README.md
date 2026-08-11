@@ -155,11 +155,23 @@ Direct Web Bluetooth ESC/POS is intentionally not included in version one becaus
 
 ## Deploy free on Vercel
 
-1. Push this repository to GitHub.
-2. Import it in Vercel.
-3. Add all six `NEXT_PUBLIC_FIREBASE_*` values in **Project Settings → Environment Variables** for Production, Preview, and Development.
-4. Deploy. In Firebase Authentication → **Settings → Authorized domains**, add the Vercel production domain.
-5. Test login, PWA installation, offline reopening, syncing, and printing on the real domain.
+1. Deploy the current Firestore rules and indexes before publishing the frontend:
+
+   ```bash
+   firebase login
+   firebase use piyu-pos-system
+   firebase deploy --only firestore:rules,firestore:indexes
+   ```
+
+2. Push this repository to GitHub and import it in Vercel with the **Next.js** framework preset. Keep the root directory as the repository root, Build Command as `next build`, and Output Directory as the Next.js default.
+3. In Vercel **Project Settings → Environment Variables**, add all six `NEXT_PUBLIC_FIREBASE_*` variables from `.env.local`. Apply them to Production and Preview (and Development if using `vercel dev`). Never upload `.env.local` to GitHub.
+4. Deploy once, then copy the stable production hostname, for example `piyu-pos-system.vercel.app`.
+5. In Firebase Console → Authentication → Settings → **Authorized domains**, add only the hostname without `https://` or a trailing slash. Add the custom domain too if one is connected later.
+6. If the Firebase Web API key has HTTP-referrer restrictions in Google Cloud Console, add `https://your-domain/*` and the production Vercel hostname there.
+7. Redeploy after changing any `NEXT_PUBLIC_*` environment value because Next.js embeds public environment values during the build.
+8. Test login, creating an online order, creating an offline order, restoring synchronization, Settings, WhatsApp invoice opening, all print formats, PWA installation, and a hard refresh on the production domain.
+
+This repository pins Vercel builds to Node.js 22 through `package.json`. The service worker is served with no-cache headers so browsers can discover new PWA releases, while its versioned application cache continues to support offline reopening.
 
 Vercel and Firebase free tiers have quotas and are not an unconditional guarantee of zero cost at every traffic level. Monitor Firebase usage/billing alerts. Back up business data regularly from Settings; browser IndexedDB is a cache, not a backup.
 
