@@ -7,6 +7,7 @@ import { useOrders } from "@/hooks/use-data";
 import { formatLKR } from "@/lib/calculations";
 import { downloadBlob, ordersCsv, reportPdf } from "@/lib/export";
 import { OrderList } from "@/components/order-list";
+import { primaryOrderStatus } from "@/lib/order-status";
 
 export default function Reports() {
   const { orders } = useOrders();
@@ -22,14 +23,14 @@ export default function Reports() {
     if (period === "Custom") return (!start || date >= new Date(start)) && (!end || date <= new Date(`${end}T23:59:59`));
     return true;
   }), [orders, period, start, end]);
-  const active = data.filter(order => !["Cancelled", "Returned"].includes(order.orderStatus));
+  const active = data.filter(order => !["Canceled", "Returned"].includes(primaryOrderStatus(order.orderStatus)));
   const stats = [
     { label: "Total orders", value: data.length },
     { label: "Total sales", value: formatLKR(active.reduce((sum, order) => sum + order.grandTotal, 0)) },
-    { label: "Delivered", value: data.filter(order => order.orderStatus === "Delivered").length },
-    { label: "Pending", value: data.filter(order => ["New", "Pending", "Confirmed", "Processing", "Packed", "Shipped"].includes(order.orderStatus)).length },
-    { label: "Cancelled", value: data.filter(order => order.orderStatus === "Cancelled").length },
-    { label: "Returned", value: data.filter(order => order.orderStatus === "Returned").length },
+    { label: "Delivered", value: data.filter(order => primaryOrderStatus(order.orderStatus) === "Delivered").length },
+    { label: "Pending", value: data.filter(order => primaryOrderStatus(order.orderStatus) === "Pending").length },
+    { label: "Canceled", value: data.filter(order => primaryOrderStatus(order.orderStatus) === "Canceled").length },
+    { label: "Returned", value: data.filter(order => primaryOrderStatus(order.orderStatus) === "Returned").length },
     { label: "COD orders", value: data.filter(order => order.payment.method === "Cash on Delivery (COD)").length },
     { label: "Collected", value: formatLKR(data.reduce((sum, order) => sum + order.amountPaid, 0)) },
     { label: "Outstanding", value: formatLKR(data.reduce((sum, order) => sum + order.balance, 0)) },

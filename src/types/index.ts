@@ -1,10 +1,10 @@
-export type OrderStatus = "New" | "Pending" | "Confirmed" | "Processing" | "Packed" | "Shipped" | "Delivered" | "Delivery Failed" | "Cancelled" | "Returned";
+export type OrderStatus = "New" | "Pending" | "Confirmed" | "Processing" | "Packed" | "Shipped" | "Delivered" | "Delivery Failed" | "Cancelled" | "Canceled" | "Returned";
 export type PaymentStatus = "Pending" | "Paid" | "Partially Paid";
 export type ShippingMethod = "Courier Delivery" | "Parcel / Post" | "Store Pickup" | "Other";
 export type PaymentMethod = "Cash on Delivery (COD)" | "Cash" | "Bank Transfer" | "Online Payment" | "Other";
 
 export interface CustomerSnapshot {
-  name: string; mobile1: string; mobile2?: string; address1: string; address2?: string;
+  name: string; email?: string; mobile1: string; mobile2?: string; address1: string; address2?: string;
   city?: string; district?: string; note?: string;
 }
 export interface Customer extends CustomerSnapshot {

@@ -5,15 +5,16 @@ Offline-first point-of-sale and order management for a Windows laptop and Androi
 ## Features
 
 - Email/password admin login with `/users/{uid}` authorization and no public signup
-- New-order form with customer lookup, multiple items, automatic discounts, delivery fees, totals, paid amount, balance, and COD amount
+- New-order form with optional email, WhatsApp mobile number, multiple items, percentage item discounts, delivery fees, totals, paid amount, balance, and COD amount
 - Request Date and Delivery Date on every order
 - Realtime orders and customers on all signed-in devices
 - Firestore persistent IndexedDB cache, offline writes, pending-sync indicators, and multi-tab support
-- Pending, Confirmed, Processing, Packed, Shipped, Delivered, Delivery Failed, Cancelled, and Returned states (legacy New orders remain supported)
+- Four clear order states: Pending, Delivered, Canceled, and Returned (older status values are mapped safely)
 - Append-only audit logs for order creation, editing, and status changes
 - Customer directory and order history based on immutable customer snapshots in orders
 - Dashboard, search/filterable orders, logs, reports, settings, CSV/JSON export, and client-side PDF report
 - Customer details with priced items, delivery details, and full bill formats for 58 mm, 80 mm, or A4 printing
+- WhatsApp invoice messages prefilled with the complete bill and customer/order details
 - Administrator-only order deletion with a warning confirmation and retained audit log
 - Installable responsive PWA with an application-shell service worker
 

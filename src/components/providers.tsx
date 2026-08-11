@@ -1,9 +1,10 @@
 "use client";
 
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
+import { disableNetwork, enableNetwork } from "firebase/firestore";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { auth, firebaseConfigured } from "@/lib/firebase";
+import { auth, db, firebaseConfigured } from "@/lib/firebase";
 import { FIRESTORE_CONNECTION_EVENT, FIRESTORE_SYNC_ERROR_EVENT, getAuthorizedUser } from "@/lib/repositories";
 import type { AppUser } from "@/types";
 
@@ -33,7 +34,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const syncBrowserState = () => setOnline(navigator.onLine);
+    const syncBrowserState = () => {
+      setOnline(false);
+      void (navigator.onLine ? enableNetwork(db) : disableNetwork(db)).catch(() => undefined);
+    };
     const syncFirestoreState = (event: Event) => {
       const connected = (event as CustomEvent<{ connected: boolean }>).detail.connected;
       setOnline(navigator.onLine && connected);
@@ -48,6 +52,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener("offline", syncBrowserState);
     window.addEventListener(FIRESTORE_CONNECTION_EVENT, syncFirestoreState);
     window.addEventListener(FIRESTORE_SYNC_ERROR_EVENT, syncWriteError);
+    syncBrowserState();
     if ("serviceWorker" in navigator) {
       if (process.env.NODE_ENV === "production") {
         navigator.serviceWorker.register("/sw.js").catch(() => undefined);
