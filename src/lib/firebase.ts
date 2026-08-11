@@ -27,10 +27,10 @@ if (typeof window !== "undefined") void setPersistence(auth, browserLocalPersist
 let firestore: Firestore;
 try {
   firestore = initializeFirestore(app, {
-    // Some proxies, antivirus tools, and mobile networks buffer Firestore's
-    // streaming WebChannel requests. Long polling avoids that false-offline
-    // state while leaving authentication and the persistent cache unchanged.
-    experimentalForceLongPolling: true,
+    // Let the SDK select streaming or long polling for the current browser and
+    // network. Forced long polling can fail on production networks that do not
+    // need it; automatic detection falls back only when required.
+    experimentalAutoDetectLongPolling: true,
     ignoreUndefinedProperties: true,
     localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
   });
