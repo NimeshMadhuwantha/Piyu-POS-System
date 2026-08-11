@@ -1,4 +1,34 @@
 "use client";
-import {useMemo,useState} from "react";import Link from "next/link";import {useOrders} from "@/hooks/use-data";import {OrderList} from "@/components/order-list";import type {OrderStatus} from "@/types";import {isToday,isYesterday,isThisWeek,isThisMonth} from "date-fns";
-const statuses:["All",...OrderStatus[]]=["All","New","Confirmed","Processing","Packed","Shipped","Delivered","Delivery Failed","Cancelled","Returned"];
-export default function Orders(){const{orders}=useOrders();const[q,setQ]=useState("");const[status,setStatus]=useState<(typeof statuses)[number]>("All");const[period,setPeriod]=useState("All time");const filtered=useMemo(()=>orders.filter(o=>{const needle=q.toLowerCase();const match=!needle||[o.orderCode,o.customer.name,o.customer.mobile1,o.shipping.trackingNumber||""].some(v=>v.toLowerCase().includes(needle));const d=new Date(o.createdAtClient);const time=period==="All time"||period==="Today"&&isToday(d)||period==="Yesterday"&&isYesterday(d)||period==="This Week"&&isThisWeek(d,{weekStartsOn:1})||period==="This Month"&&isThisMonth(d);return match&&(status==="All"||o.orderStatus===status)&&time}),[orders,q,status,period]);return <><div className="page-head"><div><h1>Orders</h1><span className="muted">Find, track, and update every order</span></div><Link className="btn" href="/orders/new">+ New Order</Link></div><div className="card no-print" style={{display:"grid",gridTemplateColumns:"minmax(180px,2fr) repeat(2,minmax(140px,1fr))",gap:10,marginBottom:15}}><label className="field">Search<input placeholder="Code, customer, mobile, tracking…" value={q} onChange={e=>setQ(e.target.value)}/></label><label className="field">Status<select value={status} onChange={e=>setStatus(e.target.value as typeof status)}>{statuses.map(x=><option key={x}>{x}</option>)}</select></label><label className="field">Date<select value={period} onChange={e=>setPeriod(e.target.value)}>{["All time","Today","Yesterday","This Week","This Month"].map(x=><option key={x}>{x}</option>)}</select></label></div><OrderList orders={filtered}/></>}
+
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import { isThisMonth, isThisWeek, isToday, isYesterday } from "date-fns";
+import { useOrders } from "@/hooks/use-data";
+import { OrderList } from "@/components/order-list";
+import { primaryOrderStatus, type PrimaryOrderStatus } from "@/lib/order-status";
+
+const statuses: Array<"All" | PrimaryOrderStatus> = ["All", "Pending", "Delivered", "Canceled", "Returned"];
+
+export default function Orders() {
+  const { orders } = useOrders();
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<(typeof statuses)[number]>("All");
+  const [period, setPeriod] = useState("All time");
+  const filtered = useMemo(() => orders.filter(order => {
+    const needle = search.toLowerCase();
+    const matchesSearch = !needle || [order.orderCode, order.customer.name, order.customer.mobile1, order.shipping.trackingNumber || ""].some(value => value.toLowerCase().includes(needle));
+    const date = new Date(order.createdAtClient);
+    const matchesDate = period === "All time" || period === "Today" && isToday(date) || period === "Yesterday" && isYesterday(date) || period === "This Week" && isThisWeek(date, { weekStartsOn: 1 }) || period === "This Month" && isThisMonth(date);
+    return matchesSearch && (status === "All" || primaryOrderStatus(order.orderStatus) === status) && matchesDate;
+  }), [orders, search, status, period]);
+
+  return <>
+    <div className="page-head"><div><h1>Orders</h1><span className="muted">Find, print, send, and update every order</span></div><Link className="btn" href="/orders/new">+ New Order</Link></div>
+    <div className="card no-print" style={{ display: "grid", gridTemplateColumns: "minmax(180px,2fr) repeat(2,minmax(140px,1fr))", gap: 10, marginBottom: 15 }}>
+      <label className="field">Search<input placeholder="Code, customer, mobile, tracking..." value={search} onChange={event => setSearch(event.target.value)}/></label>
+      <label className="field">Status<select value={status} onChange={event => setStatus(event.target.value as typeof status)}>{statuses.map(value => <option key={value}>{value}</option>)}</select></label>
+      <label className="field">Date<select value={period} onChange={event => setPeriod(event.target.value)}>{["All time", "Today", "Yesterday", "This Week", "This Month"].map(value => <option key={value}>{value}</option>)}</select></label>
+    </div>
+    <OrderList orders={filtered}/>
+  </>;
+}

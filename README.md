@@ -5,15 +5,17 @@ Offline-first point-of-sale and order management for a Windows laptop and Androi
 ## Features
 
 - Email/password admin login with `/users/{uid}` authorization and no public signup
-- New-order form with customer lookup, multiple items, automatic discounts, delivery fees, totals, paid amount, balance, and COD amount
+- New-order form with optional email, WhatsApp mobile number, multiple items, percentage item discounts, delivery fees, totals, paid amount, balance, and COD amount
 - Request Date and Delivery Date on every order
 - Realtime orders and customers on all signed-in devices
 - Firestore persistent IndexedDB cache, offline writes, pending-sync indicators, and multi-tab support
-- New, Confirmed, Processing, Packed, Shipped, Delivered, Delivery Failed, Cancelled, and Returned states
+- Four clear order states: Pending, Delivered, Canceled, and Returned (older status values are mapped safely)
 - Append-only audit logs for order creation, editing, and status changes
 - Customer directory and order history based on immutable customer snapshots in orders
 - Dashboard, search/filterable orders, logs, reports, settings, CSV/JSON export, and client-side PDF report
-- Customer receipt, shipping/parcel label, and full receipt for 58 mm, 80 mm, or A4 printing
+- Customer details with priced items, delivery details, and full bill formats for 58 mm, 80 mm, or A4 printing
+- WhatsApp invoice messages prefilled with the complete bill and customer/order details
+- Administrator-only order deletion with a warning confirmation and retained audit log
 - Installable responsive PWA with an application-shell service worker
 
 ## Technology
@@ -81,7 +83,7 @@ firebase use --add
 firebase deploy --only firestore:rules,firestore:indexes
 ```
 
-The included `firestore.rules` requires an authenticated, active `/users/{uid}` profile. Normal clients cannot delete orders/customers or edit/delete logs. `firestore.indexes.json` contains indexes for status and order-log queries.
+The included `firestore.rules` requires an authenticated, active `/users/{uid}` profile. Only a user whose profile has `role: "admin"` can delete orders. Customers cannot be deleted and logs cannot be edited or deleted. `firestore.indexes.json` contains indexes for status and order-log queries.
 
 Collections are created as they are used: `users`, `customers`, `orders`, `orderLogs`, and `settings`.
 
@@ -115,12 +117,33 @@ The service worker caches only same-origin application assets/navigation. Firest
 6. Confirm previously loaded data is visible. Create an offline order and change an order status.
 7. Confirm **Waiting to Sync** is visible. Offline operation is normal; do not clear site data.
 8. Restore internet and confirm indicators change to **Synced** and the second device receives updates.
-9. From an order, print Customer Receipt, Shipping Label, and Full Receipt.
+9. From an order, print Customer Details & Items, Delivery Details, and Full Bill.
 10. Generate a monthly PDF and export CSV/JSON.
 
 ## Printing
 
-Configure the default size under **Settings**. Open an order and choose the desired receipt. Printing uses the normal browser/operating-system print dialog.
+Configure the default size under **Settings**. Open an order and choose Delivery Details, Customer Details & Items, Full Bill, or all three. Printing uses the normal browser/operating-system print dialog.
+
+## Firestore connection troubleshooting
+
+The app stores writes in Firestore's persistent browser cache first and synchronizes them automatically. **Waiting to sync** is safe while offline; do not clear the browser's site data before synchronization completes.
+
+After changing Firebase initialization or `.env.local`, completely stop `npm run dev`, start it again, and hard-refresh the browser. If the app stays in Offline mode while other websites work, allow these HTTPS hosts through the device firewall, antivirus web shield, proxy, and DNS filter:
+
+- `firestore.googleapis.com`
+- `*.googleapis.com`
+- `*.firebaseio.com`
+- `*.firebaseapp.com`
+
+Deploy the updated deletion permission after this release:
+
+```bash
+firebase login
+firebase use piyu-pos-system
+firebase deploy --only firestore:rules,firestore:indexes
+```
+
+In Firestore, confirm the signed-in administrator's `users/{uid}` document contains `active: true` and `role: "admin"`; otherwise the Delete button is intentionally unavailable.
 
 For a Bluetooth thermal printer:
 

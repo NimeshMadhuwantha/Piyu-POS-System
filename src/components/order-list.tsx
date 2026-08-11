@@ -1,3 +1,31 @@
 "use client";
-import Link from "next/link";import {format} from "date-fns";import {formatLKR} from "@/lib/calculations";import {StatusBadge} from "./status-badge";import type {Order} from "@/types";
-export function OrderList({orders}:{orders:Order[]}){if(!orders.length)return <div className="card muted">No orders match your search or filters.</div>;return <><div className="card desktop-table table-wrap"><table className="table"><thead><tr><th>Order / Date</th><th>Customer</th><th>Total</th><th>Shipping</th><th>Payment</th><th>Status</th><th>Sync</th></tr></thead><tbody>{orders.map(o=><tr key={o.id}><td><Link href={`/orders/${o.id}`}><b>{o.orderCode}</b></Link><div className="muted">{format(new Date(o.createdAtClient),"dd MMM yyyy, h:mm a")}</div></td><td>{o.customer.name}<div className="muted">{o.customer.mobile1}</div></td><td>{formatLKR(o.grandTotal)}</td><td>{o.shipping.method}</td><td>{o.payment.method}<br/><StatusBadge value={o.paymentStatus}/></td><td><StatusBadge value={o.orderStatus}/></td><td>{o.pending?"Waiting to Sync":"Synced"}</td></tr>)}</tbody></table></div><div className="mobile-cards">{orders.map(o=><Link href={`/orders/${o.id}`} key={o.id} className="card" style={{textDecoration:"none",color:"inherit"}}><div style={{display:"flex",justifyContent:"space-between",gap:8}}><b>{o.orderCode}</b><StatusBadge value={o.orderStatus}/></div><h3 style={{margin:"12px 0 3px"}}>{o.customer.name}</h3><div className="muted">{o.customer.mobile1}</div><div style={{display:"flex",justifyContent:"space-between",marginTop:14}}><span>{format(new Date(o.createdAtClient),"dd MMM, h:mm a")}</span><b>{formatLKR(o.grandTotal)}</b></div>{o.pending&&<div style={{color:"#b45309",fontSize:12,marginTop:8}}>● Waiting to Sync</div>}</Link>)}</div></>}
+
+import Link from "next/link";
+import { format } from "date-fns";
+import { Eye, MessageCircle, Printer } from "lucide-react";
+import { formatLKR } from "@/lib/calculations";
+import { openWhatsAppInvoice } from "@/lib/whatsapp";
+import { StatusBadge } from "./status-badge";
+import type { Order } from "@/types";
+
+function OrderActions({ order }: { order: Order }) {
+  return <div className="order-actions no-print">
+    <Link className="btn secondary" href={`/orders/${order.id}`}><Eye size={16}/>View bill</Link>
+    <Link className="btn secondary" href={`/orders/${order.id}?print=full`} target="_blank"><Printer size={16}/>Print bill</Link>
+    <button className="btn whatsapp" type="button" onClick={() => openWhatsAppInvoice(order)}><MessageCircle size={16}/>Send invoice</button>
+  </div>;
+}
+
+export function OrderList({ orders }: { orders: Order[] }) {
+  if (!orders.length) return <div className="card muted">No orders match your search or filters.</div>;
+  return <>
+    <div className="card desktop-table table-wrap"><table className="table order-table"><thead><tr><th>Order / Date</th><th>Customer</th><th>Total</th><th>Shipping</th><th>Payment</th><th>Status</th><th>Sync</th><th className="no-print">Actions</th></tr></thead><tbody>{orders.map(order => <tr key={order.id}>
+      <td><Link href={`/orders/${order.id}`}><b>{order.orderCode}</b></Link><div className="muted">{format(new Date(order.createdAtClient), "dd MMM yyyy, h:mm a")}</div></td>
+      <td>{order.customer.name}<div className="muted">{order.customer.mobile1}</div></td>
+      <td>{formatLKR(order.grandTotal)}</td><td>{order.shipping.method}</td>
+      <td>{order.payment.method}</td><td><StatusBadge value={order.orderStatus}/></td>
+      <td>{order.pending ? <span className="sync-waiting">Saved locally</span> : "Synced"}</td><td className="no-print"><OrderActions order={order}/></td>
+    </tr>)}</tbody></table></div>
+    <div className="mobile-cards">{orders.map(order => <article key={order.id} className="card"><div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><b>{order.orderCode}</b><StatusBadge value={order.orderStatus}/></div><h3 style={{ margin: "12px 0 3px" }}>{order.customer.name}</h3><div className="muted">{order.customer.mobile1}</div><div style={{ display: "flex", justifyContent: "space-between", marginTop: 14 }}><span>{format(new Date(order.createdAtClient), "dd MMM, h:mm a")}</span><b>{formatLKR(order.grandTotal)}</b></div>{order.pending && <div className="sync-waiting" style={{ fontSize: 12, marginTop: 8 }}>Saved locally - waiting to sync</div>}<OrderActions order={order}/></article>)}</div>
+  </>;
+}

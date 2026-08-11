@@ -4,11 +4,11 @@ const nonNegativeNumber = z.number().min(0);
 export const orderItemSchema = z.object({
   id: z.string(), name: z.string().trim().min(1, "Item name is required"), variant: z.string().optional(),
   quantity: z.number().min(1, "Quantity must be at least 1"), unit: z.string().min(1),
-  weight: nonNegativeNumber.optional(), unitPrice: nonNegativeNumber, discount: nonNegativeNumber, subtotal: nonNegativeNumber,
+  weight: nonNegativeNumber.optional(), unitPrice: nonNegativeNumber, discount: z.number().min(0).max(100, "Discount cannot exceed 100%"), subtotal: nonNegativeNumber,
 });
 export const orderFormSchema = z.object({
   customer: z.object({
-    name: z.string().trim().min(1, "Customer name is required"), mobile1: z.string().trim().min(7, "Primary mobile is required"),
+    name: z.string().trim().min(1, "Customer name is required"), email: z.union([z.literal(""), z.string().trim().email("Enter a valid email")]).optional(), mobile1: z.string().trim().min(7, "Primary mobile is required"),
     mobile2: z.string().optional(), address1: z.string().trim().min(1, "Address is required"), address2: z.string().optional(),
     city: z.string().optional(), district: z.string().optional(), note: z.string().optional(),
   }),
