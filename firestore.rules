@@ -1,8 +1,9 @@
 rules_version = '2';
 service cloud.firestore { match /databases/{database}/documents {
   function activeUser() { return request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.active == true; }
+  function adminUser() { return activeUser() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'; }
   match /users/{uid} { allow read: if activeUser() && request.auth.uid == uid; allow write: if false; }
-  match /orders/{id} { allow read, create, update: if activeUser(); allow delete: if false; }
+  match /orders/{id} { allow read, create, update: if activeUser(); allow delete: if adminUser(); }
   match /customers/{id} { allow read, create, update: if activeUser(); allow delete: if false; }
   match /orderLogs/{id} { allow read, create: if activeUser(); allow update, delete: if false; }
   match /settings/{id} { allow read, create, update: if activeUser(); allow delete: if false; }

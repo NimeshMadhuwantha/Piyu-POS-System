@@ -1,4 +1,4 @@
-export type OrderStatus = "New" | "Confirmed" | "Processing" | "Packed" | "Shipped" | "Delivered" | "Delivery Failed" | "Cancelled" | "Returned";
+export type OrderStatus = "New" | "Pending" | "Confirmed" | "Processing" | "Packed" | "Shipped" | "Delivered" | "Delivery Failed" | "Cancelled" | "Returned";
 export type PaymentStatus = "Pending" | "Paid" | "Partially Paid";
 export type ShippingMethod = "Courier Delivery" | "Parcel / Post" | "Store Pickup" | "Other";
 export type PaymentMethod = "Cash on Delivery (COD)" | "Cash" | "Bank Transfer" | "Online Payment" | "Other";

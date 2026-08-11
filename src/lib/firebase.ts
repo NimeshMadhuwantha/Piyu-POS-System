@@ -1,6 +1,6 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
 import { browserLocalPersistence, getAuth, setPersistence } from "firebase/auth";
-import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, type Firestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, setLogLevel, type Firestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -26,8 +26,18 @@ export const auth = getAuth(app);
 if (typeof window !== "undefined") void setPersistence(auth, browserLocalPersistence).catch(() => undefined);
 let firestore: Firestore;
 try {
-  firestore = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+  firestore = initializeFirestore(app, {
+    // Some proxies, antivirus tools, and mobile networks buffer Firestore's
+    // streaming WebChannel requests. Long polling avoids that false-offline
+    // state while leaving authentication and the persistent cache unchanged.
+    experimentalForceLongPolling: true,
+    ignoreUndefinedProperties: true,
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+  });
 } catch {
   firestore = getFirestore(app);
 }
 export const db = firestore;
+// Connectivity is represented in the app UI and pending-write badges. Avoid
+// Firebase's expected offline retry message becoming a Next.js error overlay.
+if (typeof window !== "undefined") setLogLevel("silent");
