@@ -10,6 +10,8 @@ const firebaseConfig = {
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
+export const firebaseProjectId = firebaseConfig.projectId;
+export const firebaseApiKey = firebaseConfig.apiKey;
 export const firebaseConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId);
 // Firebase validates config during module evaluation. Build-only placeholders let
 // Next.js prerender the login/404 pages before the owner adds real environment values.
