@@ -82,9 +82,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           else if (!profile.active) setSetupError("This POS user account has been disabled.");
         } catch (error) {
           const code = (error as { code?: string }).code || "";
+          const message = error instanceof Error ? error.message : "";
           setSetupError(code.includes("permission-denied")
             ? "Firestore denied access. Deploy the included security rules and verify your users/{uid} document."
-            : "Cloud Firestore is currently unreachable. Cached orders remain available and local changes will sync automatically when the connection returns.");
+            : message.startsWith("Firestore REST")
+              ? message
+              : "Cloud Firestore is currently unreachable. Cached orders remain available and local changes will sync automatically when the connection returns.");
         }
       }
       setUser(profile?.active ? profile : null);

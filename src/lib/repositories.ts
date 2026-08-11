@@ -11,7 +11,7 @@ import {
   writeBatch,
   type Unsubscribe,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { auth, db, firebaseApiKey, firebaseProjectId } from "@/lib/firebase";
 import type { AppUser, BusinessSettings, Customer, Order, OrderLog, OrderStatus } from "@/types";
 
 export const FIRESTORE_SYNC_ERROR_EVENT = "piyu:firestore-sync-error";
@@ -46,8 +46,38 @@ export async function getAuthorizedUser(uid: string): Promise<AppUser | null> {
   } catch {
     // A first login has no cached profile and must continue to the server.
   }
-  const snap = await getDoc(doc(db, "users", uid));
-  return snap.exists() ? ({ uid: snap.id, ...snap.data() } as AppUser) : null;
+  try {
+    const snap = await getDoc(doc(db, "users", uid));
+    return snap.exists() ? ({ uid: snap.id, ...snap.data() } as AppUser) : null;
+  } catch (sdkError) {
+    // Some browser/network combinations can authenticate successfully but fail
+    // Firestore's realtime WebChannel. The authenticated REST endpoint uses the
+    // same Firebase ID token and security rules, and gives us a reliable profile
+    // bootstrap plus a precise HTTP error when project settings are blocking it.
+    const currentUser = auth.currentUser;
+    if (!currentUser || !firebaseProjectId || !firebaseApiKey) throw sdkError;
+    const token = await currentUser.getIdToken();
+    const endpoint = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(firebaseProjectId)}/databases/(default)/documents/users/${encodeURIComponent(uid)}?key=${encodeURIComponent(firebaseApiKey)}`;
+    let response: Response;
+    try {
+      response = await fetch(endpoint, { headers: { Authorization: `Bearer ${token}` } });
+    } catch {
+      throw new Error("Firestore REST connection was blocked by this browser or network.");
+    }
+    if (response.status === 404) return null;
+    const body = await response.json().catch(() => ({})) as { error?: { message?: string; status?: string }; fields?: Record<string, { stringValue?: string; booleanValue?: boolean }> };
+    if (!response.ok) {
+      throw new Error(`Firestore REST ${response.status} ${body.error?.status || "ERROR"}: ${body.error?.message || "Request failed"}`);
+    }
+    const fields = body.fields || {};
+    return {
+      uid,
+      name: fields.name?.stringValue || currentUser.email || "User",
+      email: fields.email?.stringValue || currentUser.email || "",
+      role: fields.role?.stringValue === "staff" ? "staff" : "admin",
+      active: fields.active?.booleanValue === true,
+    };
+  }
 }
 
 export function subscribeOrders(callback: (orders: Order[]) => void, onError?: (error: Error) => void): Unsubscribe {
