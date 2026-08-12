@@ -3,11 +3,14 @@ import {
   doc,
   getDoc,
   getDocFromCache,
+  getDocs,
+  limit,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
   setDoc,
+  where,
   writeBatch,
   type Unsubscribe,
 } from "firebase/firestore";
@@ -18,6 +21,8 @@ export const FIRESTORE_SYNC_ERROR_EVENT = "piyu:firestore-sync-error";
 export const FIRESTORE_CONNECTION_EVENT = "piyu:firestore-connection";
 const BUSINESS_SETTINGS_KEY = "piyu-pos-business-settings";
 const DEFAULT_BUSINESS_SETTINGS: BusinessSettings = { businessName: "Piyu POS", phone: "", address: "", receiptWidth: "80mm", footer: "Thank you for your order!" };
+export const MAX_COLLECTION_RECORDS = 3000;
+export const APP_STORAGE_QUOTA_BYTES = 150 * 1024 * 1024;
 
 function reportConnection(connected: boolean) {
   if (typeof window === "undefined") return;
@@ -82,7 +87,7 @@ export async function getAuthorizedUser(uid: string): Promise<AppUser | null> {
 
 export function subscribeOrders(callback: (orders: Order[]) => void, onError?: (error: Error) => void): Unsubscribe {
   return onSnapshot(
-    query(collection(db, "orders"), orderBy("createdAtClient", "desc")),
+    query(collection(db, "orders"), orderBy("createdAtClient", "desc"), limit(MAX_COLLECTION_RECORDS)),
     { includeMetadataChanges: true },
     snap => {
       reportConnection(!snap.metadata.fromCache);
@@ -181,7 +186,7 @@ export function deleteOrder(order: Order, actor: AppUser) {
 
 export function subscribeCustomers(callback: (customers: Customer[]) => void): Unsubscribe {
   return onSnapshot(
-    query(collection(db, "customers"), orderBy("updatedAtClient", "desc")),
+    query(collection(db, "customers"), orderBy("updatedAtClient", "desc"), limit(MAX_COLLECTION_RECORDS)),
     { includeMetadataChanges: true },
     snap => { reportConnection(!snap.metadata.fromCache); callback(snap.docs.map(item => ({ id: item.id, ...item.data() } as Customer))); },
     () => reportConnection(false),
@@ -190,7 +195,7 @@ export function subscribeCustomers(callback: (customers: Customer[]) => void): U
 
 export function subscribeLogs(callback: (logs: OrderLog[]) => void): Unsubscribe {
   return onSnapshot(
-    query(collection(db, "orderLogs"), orderBy("clientTimestamp", "desc")),
+    query(collection(db, "orderLogs"), orderBy("clientTimestamp", "desc"), limit(MAX_COLLECTION_RECORDS)),
     { includeMetadataChanges: true },
     snap => { reportConnection(!snap.metadata.fromCache); callback(snap.docs.map(item => ({ id: item.id, ...item.data(), pending: item.metadata.hasPendingWrites } as OrderLog))); },
     () => reportConnection(false),
@@ -232,4 +237,59 @@ export function subscribeBusinessSettings(callback: (settings: BusinessSettings)
 export function saveBusinessSettings(settings: BusinessSettings) {
   if (typeof window !== "undefined") localStorage.setItem(BUSINESS_SETTINGS_KEY, JSON.stringify(settings));
   queueCommit(setDoc(doc(db, "settings", "business"), settings));
+}
+
+type ClearDataMode = { type: "logs" } | { type: "year"; year: number } | { type: "all" };
+
+async function deleteDocuments(refs: Array<ReturnType<typeof doc>>) {
+  for (let start = 0; start < refs.length; start += 400) {
+    const batch = writeBatch(db);
+    refs.slice(start, start + 400).forEach(ref => batch.delete(ref));
+    await batch.commit();
+  }
+}
+
+async function removeOrphanCustomers() {
+  const [ordersSnapshot, customersSnapshot] = await Promise.all([getDocs(collection(db, "orders")), getDocs(collection(db, "customers"))]);
+  const customerIds = new Set<string>();
+  const customerMobiles = new Set<string>();
+  ordersSnapshot.docs.forEach(item => {
+    const order = item.data() as Order;
+    if (order.customerId) customerIds.add(order.customerId);
+    if (order.customer?.mobile1) customerMobiles.add(order.customer.mobile1);
+  });
+  const orphanRefs = customersSnapshot.docs.filter(item => {
+    const customer = item.data() as Customer;
+    return !customerIds.has(item.id) && !customerMobiles.has(customer.mobile1);
+  }).map(item => item.ref);
+  await deleteDocuments(orphanRefs);
+  return orphanRefs.length;
+}
+
+export async function clearBusinessData(mode: ClearDataMode) {
+  let orderSnapshot;
+  let logSnapshot;
+  if (mode.type === "year") {
+    const start = `${mode.year}-01-01T00:00:00.000Z`;
+    const end = `${mode.year + 1}-01-01T00:00:00.000Z`;
+    [orderSnapshot, logSnapshot] = await Promise.all([
+      getDocs(query(collection(db, "orders"), where("createdAtClient", ">=", start), where("createdAtClient", "<", end))),
+      getDocs(query(collection(db, "orderLogs"), where("clientTimestamp", ">=", start), where("clientTimestamp", "<", end))),
+    ]);
+  } else {
+    [orderSnapshot, logSnapshot] = await Promise.all([
+      mode.type === "all" ? getDocs(collection(db, "orders")) : Promise.resolve(null),
+      getDocs(collection(db, "orderLogs")),
+    ]);
+  }
+  const orderRefs = orderSnapshot?.docs.map(item => item.ref) || [];
+  const logRefs = logSnapshot.docs.map(item => item.ref);
+  await deleteDocuments([...orderRefs, ...logRefs]);
+  let customers = 0;
+  if (mode.type === "all") {
+    const customersSnapshot = await getDocs(collection(db, "customers"));
+    customers = customersSnapshot.size;
+    await deleteDocuments(customersSnapshot.docs.map(item => item.ref));
+  } else if (mode.type === "year") customers = await removeOrphanCustomers();
+  return { orders: orderRefs.length, logs: logRefs.length, customers };
 }

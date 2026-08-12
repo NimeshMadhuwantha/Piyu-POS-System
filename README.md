@@ -83,7 +83,7 @@ firebase use --add
 firebase deploy --only firestore:rules,firestore:indexes
 ```
 
-The included `firestore.rules` requires an authenticated, active `/users/{uid}` profile. Only a user whose profile has `role: "admin"` can delete orders. Customers cannot be deleted and logs cannot be edited or deleted. `firestore.indexes.json` contains indexes for status and order-log queries.
+The included `firestore.rules` requires an authenticated, active `/users/{uid}` profile. Only a user whose profile has `role: "admin"` can delete orders, customers, or logs; log updates remain prohibited. The Settings cleanup tools also require the administrator to re-enter the current Firebase login password. Deploy updated rules with `firebase deploy --only firestore:rules`. `firestore.indexes.json` contains indexes for status and order-log queries.
 
 Collections are created as they are used: `users`, `customers`, `orders`, `orderLogs`, and `settings`.
 

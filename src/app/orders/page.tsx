@@ -5,6 +5,8 @@ import Link from "next/link";
 import { isThisMonth, isThisWeek, isToday, isYesterday } from "date-fns";
 import { useOrders } from "@/hooks/use-data";
 import { OrderList } from "@/components/order-list";
+import { CapacityWarning } from "@/components/capacity-warning";
+import { MAX_COLLECTION_RECORDS } from "@/lib/repositories";
 import { primaryOrderStatus, type PrimaryOrderStatus } from "@/lib/order-status";
 
 const statuses: Array<"All" | PrimaryOrderStatus> = ["All", "Pending", "Delivered", "Canceled", "Returned"];
@@ -24,6 +26,7 @@ export default function Orders() {
 
   return <>
     <div className="page-head"><div><h1>Orders</h1><span className="muted">Find, print, send, and update every order</span></div><Link className="btn" href="/orders/new">+ New Order</Link></div>
+    <CapacityWarning label="Orders" count={orders.length} limit={MAX_COLLECTION_RECORDS}/>
     <div className="card no-print order-filters">
       <label className="field">Search<input placeholder="Code, customer, mobile, tracking..." value={search} onChange={event => setSearch(event.target.value)}/></label>
       <label className="field">Status<select value={status} onChange={event => setStatus(event.target.value as typeof status)}>{statuses.map(value => <option key={value}>{value}</option>)}</select></label>
