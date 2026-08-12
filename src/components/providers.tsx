@@ -55,7 +55,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     syncBrowserState();
     if ("serviceWorker" in navigator) {
       if (process.env.NODE_ENV === "production") {
-        navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          const reloadKey = "piyu-pos-sw-v6-reloaded";
+          if (sessionStorage.getItem(reloadKey)) return;
+          sessionStorage.setItem(reloadKey, "1");
+          window.location.reload();
+        });
+        navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" }).then(registration => registration.update()).catch(() => undefined);
       } else {
         void navigator.serviceWorker.getRegistrations().then(items => Promise.all(items.map(item => item.unregister())));
         if ("caches" in window) void caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith("piyu-pos-")).map(key => caches.delete(key))));

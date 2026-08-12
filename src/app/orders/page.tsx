@@ -24,7 +24,7 @@ export default function Orders() {
 
   return <>
     <div className="page-head"><div><h1>Orders</h1><span className="muted">Find, print, send, and update every order</span></div><Link className="btn" href="/orders/new">+ New Order</Link></div>
-    <div className="card no-print" style={{ display: "grid", gridTemplateColumns: "minmax(180px,2fr) repeat(2,minmax(140px,1fr))", gap: 10, marginBottom: 15 }}>
+    <div className="card no-print order-filters">
       <label className="field">Search<input placeholder="Code, customer, mobile, tracking..." value={search} onChange={event => setSearch(event.target.value)}/></label>
       <label className="field">Status<select value={status} onChange={event => setStatus(event.target.value as typeof status)}>{statuses.map(value => <option key={value}>{value}</option>)}</select></label>
       <label className="field">Date<select value={period} onChange={event => setPeriod(event.target.value)}>{["All time", "Today", "Yesterday", "This Week", "This Month"].map(value => <option key={value}>{value}</option>)}</select></label>
