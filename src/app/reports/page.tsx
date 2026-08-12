@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { isThisMonth, isThisWeek, isToday, isYesterday } from "date-fns";
 import { Download, FileText, Printer } from "lucide-react";
 import { useOrders } from "@/hooks/use-data";
-import { formatLKR } from "@/lib/calculations";
 import { downloadBlob, ordersCsv, reportPdf } from "@/lib/export";
 import { OrderList } from "@/components/order-list";
 import { primaryOrderStatus } from "@/lib/order-status";
@@ -28,14 +27,14 @@ export default function Reports() {
   const active = data.filter(order => !["Canceled", "Returned"].includes(primaryOrderStatus(order.orderStatus)));
   const stats = [
     { label: "Total orders", value: data.length, money: false },
-    { label: "Total sales", value: formatLKR(active.reduce((sum, order) => sum + order.grandTotal, 0)), money: true },
+    { label: "Total sales", value: active.reduce((sum, order) => sum + order.grandTotal, 0), money: true },
     { label: "Delivered", value: data.filter(order => primaryOrderStatus(order.orderStatus) === "Delivered").length },
     { label: "Pending", value: data.filter(order => primaryOrderStatus(order.orderStatus) === "Pending").length },
     { label: "Canceled", value: data.filter(order => primaryOrderStatus(order.orderStatus) === "Canceled").length },
     { label: "Returned", value: data.filter(order => primaryOrderStatus(order.orderStatus) === "Returned").length },
     { label: "COD orders", value: data.filter(order => order.payment.method === "Cash on Delivery (COD)").length },
-    { label: "Collected", value: formatLKR(data.reduce((sum, order) => sum + order.amountPaid, 0)), money: true },
-    { label: "Outstanding", value: formatLKR(data.reduce((sum, order) => sum + order.balance, 0)), money: true },
+    { label: "Collected", value: data.reduce((sum, order) => sum + order.amountPaid, 0), money: true },
+    { label: "Outstanding", value: data.reduce((sum, order) => sum + order.balance, 0), money: true },
   ];
 
   async function createPdf() {
@@ -61,7 +60,7 @@ export default function Reports() {
       <button className="btn" onClick={() => window.print()}><Printer size={17}/>Print report</button>
     </div>
     {pdfError && <p className="report-error no-print" role="alert">{pdfError}</p>}
-    <div className="report-stats">{stats.map(stat => <div className={`card report-stat ${stat.money ? "report-stat-money" : ""}`} key={stat.label}><small className="muted">{stat.label}</small><div className="report-stat-value">{stat.value}</div></div>)}</div>
+    <div className="report-stats">{stats.map(stat => <div className={`card report-stat ${stat.money ? "report-stat-money" : ""}`} key={stat.label}><small className="muted">{stat.label}</small>{stat.money ? <div className="report-money"><span>LKR</span><strong>{Number(stat.value).toLocaleString("en-LK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div> : <div className="report-stat-value">{stat.value}</div>}</div>)}</div>
     <OrderList orders={data}/>
   </>;
 }
