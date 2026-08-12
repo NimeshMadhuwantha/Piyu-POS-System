@@ -14,6 +14,8 @@ export default function Reports() {
   const [period, setPeriod] = useState("This Month");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfError, setPdfError] = useState("");
   const data = useMemo(() => orders.filter(order => {
     const date = new Date(order.createdAtClient);
     if (period === "Today") return isToday(date);
@@ -25,27 +27,41 @@ export default function Reports() {
   }), [orders, period, start, end]);
   const active = data.filter(order => !["Canceled", "Returned"].includes(primaryOrderStatus(order.orderStatus)));
   const stats = [
-    { label: "Total orders", value: data.length },
-    { label: "Total sales", value: formatLKR(active.reduce((sum, order) => sum + order.grandTotal, 0)) },
+    { label: "Total orders", value: data.length, money: false },
+    { label: "Total sales", value: formatLKR(active.reduce((sum, order) => sum + order.grandTotal, 0)), money: true },
     { label: "Delivered", value: data.filter(order => primaryOrderStatus(order.orderStatus) === "Delivered").length },
     { label: "Pending", value: data.filter(order => primaryOrderStatus(order.orderStatus) === "Pending").length },
     { label: "Canceled", value: data.filter(order => primaryOrderStatus(order.orderStatus) === "Canceled").length },
     { label: "Returned", value: data.filter(order => primaryOrderStatus(order.orderStatus) === "Returned").length },
     { label: "COD orders", value: data.filter(order => order.payment.method === "Cash on Delivery (COD)").length },
-    { label: "Collected", value: formatLKR(data.reduce((sum, order) => sum + order.amountPaid, 0)) },
-    { label: "Outstanding", value: formatLKR(data.reduce((sum, order) => sum + order.balance, 0)) },
+    { label: "Collected", value: formatLKR(data.reduce((sum, order) => sum + order.amountPaid, 0)), money: true },
+    { label: "Outstanding", value: formatLKR(data.reduce((sum, order) => sum + order.balance, 0)), money: true },
   ];
+
+  async function createPdf() {
+    setPdfBusy(true);
+    setPdfError("");
+    try {
+      await reportPdf(data, `Piyu POS - ${period}`);
+    } catch (error) {
+      console.error("Unable to create report PDF", error);
+      setPdfError("PDF could not be created. Please try again.");
+    } finally {
+      setPdfBusy(false);
+    }
+  }
 
   return <>
     <div className="page-head"><div><h1>Reports</h1><span className="muted">Sales and order summary - {period}</span></div></div>
-    <div className="card no-print" style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "end", marginBottom: 14 }}>
+    <div className="card no-print report-filters">
       <label className="field">Date range<select value={period} onChange={event => setPeriod(event.target.value)}>{["Today", "Yesterday", "This Week", "This Month", "Custom", "All time"].map(value => <option key={value}>{value}</option>)}</select></label>
       {period === "Custom" && <><label className="field">From<input type="date" value={start} onChange={event => setStart(event.target.value)}/></label><label className="field">To<input type="date" value={end} onChange={event => setEnd(event.target.value)}/></label></>}
-      <button className="btn secondary" onClick={() => reportPdf(data, `Piyu POS - ${period}`)}><FileText size={17}/>PDF</button>
+      <button className="btn secondary" type="button" disabled={pdfBusy} onClick={createPdf}><FileText size={17}/>{pdfBusy ? "Creating…" : "PDF"}</button>
       <button className="btn secondary" onClick={() => downloadBlob("orders.csv", ordersCsv(data), "text/csv")}><Download size={17}/>CSV</button>
       <button className="btn" onClick={() => window.print()}><Printer size={17}/>Print report</button>
     </div>
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 10, marginBottom: 16 }}>{stats.map(stat => <div className="card" key={stat.label}><small className="muted">{stat.label}</small><div style={{ fontSize: 20, fontWeight: 800, marginTop: 6 }}>{stat.value}</div></div>)}</div>
+    {pdfError && <p className="report-error no-print" role="alert">{pdfError}</p>}
+    <div className="report-stats">{stats.map(stat => <div className={`card report-stat ${stat.money ? "report-stat-money" : ""}`} key={stat.label}><small className="muted">{stat.label}</small><div className="report-stat-value">{stat.value}</div></div>)}</div>
     <OrderList orders={data}/>
   </>;
 }
