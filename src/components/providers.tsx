@@ -2,7 +2,7 @@
 
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { disableNetwork, enableNetwork } from "firebase/firestore";
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { auth, db, firebaseConfigured } from "@/lib/firebase";
 import { FIRESTORE_CONNECTION_EVENT, FIRESTORE_SYNC_ERROR_EVENT, getAuthorizedUser } from "@/lib/repositories";
@@ -105,13 +105,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!loading && !firebaseUser && pathname !== "/login") router.replace("/login");
   }, [firebaseUser, loading, pathname, router]);
 
+  const signOutUser = useCallback(async () => { await signOut(auth); router.replace("/login"); }, [router]);
   const value = useMemo(() => ({
     firebaseUser,
     user,
     loading,
     online,
     setupError,
-    signOutUser: async () => { await signOut(auth); router.replace("/login"); },
-  }), [firebaseUser, user, loading, online, setupError, router]);
+    signOutUser,
+  }), [firebaseUser, user, loading, online, setupError, signOutUser]);
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

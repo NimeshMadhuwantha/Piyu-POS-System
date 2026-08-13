@@ -1,6 +1,6 @@
 export type OrderStatus = "New" | "Pending" | "Confirmed" | "Processing" | "Packed" | "Shipped" | "Delivered" | "Delivery Failed" | "Cancelled" | "Canceled" | "Returned";
 export type PaymentStatus = "Pending" | "Paid" | "Partially Paid";
-export type ShippingMethod = "Courier Delivery" | "Parcel / Post" | "Store Pickup" | "Other";
+export type ShippingMethod = string;
 export type PaymentMethod = "Cash on Delivery (COD)" | "Cash" | "Bank Transfer" | "Online Payment" | "Other";
 
 export interface CustomerSnapshot {
@@ -12,10 +12,10 @@ export interface Customer extends CustomerSnapshot {
 }
 export interface OrderItem {
   id: string; name: string; variant?: string; quantity: number; unit: string; weight?: number;
-  unitPrice: number; discount: number; subtotal: number;
+  unitPrice: number; discount: number; subtotal: number; categoryId?: string; catalogItemId?: string;
 }
 export interface ShippingDetails {
-  method: ShippingMethod; courier?: string; trackingNumber?: string; parcelWeight?: number; note?: string;
+  method: ShippingMethod; courier?: string; trackingNumber?: string; parcelWeight?: number; note?: string; methodId?: string;
 }
 export interface PaymentDetails { method: PaymentMethod; status: PaymentStatus; }
 export interface Order {
@@ -32,4 +32,8 @@ export interface OrderLog {
   clientTimestamp: string; serverTimestamp?: unknown; pending?: boolean;
 }
 export interface AppUser { uid: string; name: string; email: string; role: "admin" | "staff"; active: boolean; }
-export interface BusinessSettings { businessName: string; phone: string; address: string; receiptWidth: "58mm" | "80mm" | "A4"; footer: string; }
+export interface CatalogItem { id: string; name: string; unit: string; weight: number; unitPrice: number; discount: number; }
+export interface ProductCategory { id: string; name: string; items: CatalogItem[]; }
+export interface ShippingRate { id: string; minWeight: number; maxWeight: number; price: number; }
+export interface ShippingOption { id: string; name: string; courier: string; rates: ShippingRate[]; }
+export interface BusinessSettings { businessName: string; phone: string; address: string; receiptWidth: "58mm" | "80mm" | "A4"; footer: string; productCategories?: ProductCategory[]; shippingOptions?: ShippingOption[]; }
