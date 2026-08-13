@@ -7,10 +7,11 @@ import { auth } from "@/lib/firebase";
 import { APP_STORAGE_QUOTA_BYTES, clearBusinessData, saveBusinessSettings, subscribeBusinessSettings } from "@/lib/repositories";
 import { useCustomers, useLogs, useOrders } from "@/hooks/use-data";
 import { useApp } from "@/components/providers";
+import { CatalogSettings } from "@/components/catalog-settings";
 import { downloadBlob, ordersCsv } from "@/lib/export";
 import type { BusinessSettings } from "@/types";
 
-const defaults: BusinessSettings = { businessName: "Piyu POS", phone: "", address: "", receiptWidth: "80mm", footer: "Thank you for your order!" };
+const defaults: BusinessSettings = { businessName: "Piyu POS", phone: "", address: "", receiptWidth: "80mm", footer: "Thank you for your order!", productCategories: [], shippingOptions: [] };
 type ClearChoice = "logs" | "year" | "all";
 
 export default function Settings() {
@@ -82,6 +83,7 @@ export default function Settings() {
       <button className="btn" type="submit" style={{ marginTop: 14 }}><Save size={17}/>{saved ? "Saved locally" : "Save settings"}</button>
       {saved && <p className="settings-success"><CheckCircle2 size={17}/>Settings are saved locally and will synchronize with Firebase.</p>}
     </form>
+    <CatalogSettings settings={settings} onChange={next => { setSettings(next); saveBusinessSettings(next); }}/>
 
     <section className="card" style={{ maxWidth: 760, marginBottom: 16 }}><h2 className="section-title">Data export</h2><p>Download business data for a backup. Browser offline storage is only a cache and is not a backup.</p><div className="settings-actions"><button type="button" className="btn secondary" onClick={() => downloadBlob(`piyu-orders-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(orders, null, 2), "application/json")}><Download size={17}/>Export JSON</button><button type="button" className="btn secondary" onClick={() => downloadBlob("piyu-orders.csv", ordersCsv(orders), "text/csv")}><Download size={17}/>Export CSV</button></div></section>
 

@@ -20,7 +20,8 @@ import type { AppUser, BusinessSettings, Customer, Order, OrderLog, OrderStatus 
 export const FIRESTORE_SYNC_ERROR_EVENT = "piyu:firestore-sync-error";
 export const FIRESTORE_CONNECTION_EVENT = "piyu:firestore-connection";
 const BUSINESS_SETTINGS_KEY = "piyu-pos-business-settings";
-const DEFAULT_BUSINESS_SETTINGS: BusinessSettings = { businessName: "Piyu POS", phone: "", address: "", receiptWidth: "80mm", footer: "Thank you for your order!" };
+const DEFAULT_BUSINESS_SETTINGS: BusinessSettings = { businessName: "Piyu POS", phone: "", address: "", receiptWidth: "80mm", footer: "Thank you for your order!", productCategories: [], shippingOptions: [] };
+const normalizeBusinessSettings = (settings: BusinessSettings): BusinessSettings => ({ ...DEFAULT_BUSINESS_SETTINGS, ...settings, productCategories: settings.productCategories || [], shippingOptions: settings.shippingOptions || [] });
 export const MAX_COLLECTION_RECORDS = 3000;
 export const APP_STORAGE_QUOTA_BYTES = 150 * 1024 * 1024;
 
@@ -211,24 +212,24 @@ export async function getBusinessSettings(): Promise<BusinessSettings> {
   }
   try {
     const cached = await getDocFromCache(doc(db, "settings", "business"));
-    if (cached.exists()) return cached.data() as BusinessSettings;
+    if (cached.exists()) return normalizeBusinessSettings(cached.data() as BusinessSettings);
   } catch {
     // Continue to the server when the setting has not been cached before.
   }
   const snap = await getDoc(doc(db, "settings", "business"));
-  return snap.exists() ? snap.data() as BusinessSettings : DEFAULT_BUSINESS_SETTINGS;
+  return snap.exists() ? normalizeBusinessSettings(snap.data() as BusinessSettings) : DEFAULT_BUSINESS_SETTINGS;
 }
 
 export function subscribeBusinessSettings(callback: (settings: BusinessSettings) => void): Unsubscribe {
   if (typeof window !== "undefined") {
     const stored = localStorage.getItem(BUSINESS_SETTINGS_KEY);
     if (stored) {
-      try { callback(JSON.parse(stored) as BusinessSettings); } catch { localStorage.removeItem(BUSINESS_SETTINGS_KEY); }
+      try { callback(normalizeBusinessSettings(JSON.parse(stored) as BusinessSettings)); } catch { localStorage.removeItem(BUSINESS_SETTINGS_KEY); }
     }
   }
   return onSnapshot(doc(db, "settings", "business"), { includeMetadataChanges: true }, snap => {
     reportConnection(!snap.metadata.fromCache);
-    const settings = snap.exists() ? snap.data() as BusinessSettings : DEFAULT_BUSINESS_SETTINGS;
+    const settings = snap.exists() ? normalizeBusinessSettings(snap.data() as BusinessSettings) : DEFAULT_BUSINESS_SETTINGS;
     if (typeof window !== "undefined") localStorage.setItem(BUSINESS_SETTINGS_KEY, JSON.stringify(settings));
     callback(settings);
   }, () => reportConnection(false));

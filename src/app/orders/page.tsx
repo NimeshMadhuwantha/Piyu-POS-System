@@ -32,6 +32,6 @@ export default function Orders() {
       <label className="field">Status<select value={status} onChange={event => setStatus(event.target.value as typeof status)}>{statuses.map(value => <option key={value}>{value}</option>)}</select></label>
       <label className="field">Date<select value={period} onChange={event => setPeriod(event.target.value)}>{["All time", "Today", "Yesterday", "This Week", "This Month"].map(value => <option key={value}>{value}</option>)}</select></label>
     </div>
-    <OrderList orders={filtered}/>
+    <OrderList key={`${search}-${status}-${period}`} orders={filtered}/>
   </>;
 }
