@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { formatLKR } from "@/lib/calculations";
+import { calculateLineWeight, formatLKR, orderTotalWeight } from "@/lib/calculations";
 import type { BusinessSettings, Order } from "@/types";
 import { primaryOrderStatus } from "@/lib/order-status";
 
@@ -11,8 +11,7 @@ const formatWeight = (weight: number) => `${weight.toLocaleString("en-LK", { max
 export function Receipt({ order, type, settings }: { order: Order; type: ReceiptType; settings: BusinessSettings }) {
   const address = [order.customer.address1, order.customer.address2, order.customer.city, order.customer.district].filter(hasText).join(", ");
   const totalQuantity = order.items.reduce((sum, item) => sum + Math.max(0, item.quantity || 0), 0);
-  const calculatedWeight = order.items.reduce((sum, item) => sum + Math.max(0, item.weight || 0) * Math.max(0, item.quantity || 0), 0);
-  const totalWeight = order.shipping.parcelWeight || calculatedWeight;
+  const totalWeight = orderTotalWeight(order);
   const paperClass = settings.receiptWidth === "A4/4" ? "A4-quarter" : settings.receiptWidth;
   const isItemList = type === "customer";
 
@@ -45,7 +44,7 @@ function FullBill({ order, address, totalWeight }: { order: Order; address: stri
     <table className="receipt-items">
       <thead><tr><th>Item</th><th>Weight</th><th>Price</th></tr></thead>
       <tbody>{order.items.map(item => {
-        const lineWeight = Math.max(0, item.weight || 0) * Math.max(0, item.quantity || 0);
+        const lineWeight = calculateLineWeight(item.weight, item.quantity);
         return <tr key={item.id}>
           <td>{item.name}{hasText(item.variant) && ` (${item.variant})`} x {item.quantity}</td>
           <td>{lineWeight > 0 ? formatWeight(lineWeight) : ""}</td>
@@ -82,7 +81,7 @@ function ItemList({ order }: { order: Order }) {
     <table className="receipt-item-list">
       <thead><tr><th>Item</th><th>Weight</th><th>Qty</th></tr></thead>
       <tbody>{order.items.map(item => {
-        const lineWeight = Math.max(0, item.weight || 0) * Math.max(0, item.quantity || 0);
+        const lineWeight = calculateLineWeight(item.weight, item.quantity);
         return <tr key={item.id}><td>{item.name}</td><td>{lineWeight > 0 ? formatWeight(lineWeight) : ""}</td><td>{item.quantity}</td></tr>;
       })}</tbody>
     </table>

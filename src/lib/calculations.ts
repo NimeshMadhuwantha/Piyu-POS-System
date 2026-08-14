@@ -1,4 +1,4 @@
-import type { OrderItem, PaymentMethod } from "@/types";
+import type { OrderItem, PaymentMethod, ShippingDetails } from "@/types";
 
 const safe = (value: number) => Number.isFinite(value) ? Math.max(0, value) : 0;
 const money = (value: number) => Math.round(safe(value) * 100) / 100;
@@ -19,4 +19,18 @@ export function calculateTotals(items: Pick<OrderItem, "quantity" | "unitPrice" 
 
 export function formatLKR(value: number) {
   return new Intl.NumberFormat("en-LK", { style: "currency", currency: "LKR", minimumFractionDigits: 2 }).format(safe(value));
+}
+
+export function calculateLineWeight(unitWeight = 0, quantity = 0) {
+  return safe(unitWeight) * safe(quantity);
+}
+
+export function calculateItemsWeight(items: Pick<OrderItem, "weight" | "quantity">[]) {
+  return items.reduce((sum, item) => sum + calculateLineWeight(item.weight, item.quantity), 0);
+}
+
+export function orderTotalWeight(order: { items: Pick<OrderItem, "weight" | "quantity">[]; shipping: Pick<ShippingDetails, "parcelWeight"> }) {
+  const hasItemWeight = order.items.some(item => safe(item.weight || 0) > 0);
+  if (hasItemWeight) return calculateItemsWeight(order.items);
+  return safe(order.shipping.parcelWeight || 0);
 }
