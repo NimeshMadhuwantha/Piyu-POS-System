@@ -2,7 +2,7 @@
 
 import { useMemo, useSyncExternalStore } from "react";
 import { subscribeCustomers, subscribeLogs, subscribeOrders } from "@/lib/repositories";
-import type { Customer, Order, OrderLog } from "@/types";
+import type { Customer, Order, OrderLog, OrderStatus } from "@/types";
 
 type Listener = () => void;
 type Stop = () => void;
@@ -48,6 +48,7 @@ function createSharedStore<T>(initialValue: T, start: (update: (value: T) => voi
     subscribe,
     getValue: () => value,
     getLoading: () => loading,
+    updateValue: (change: (current: T) => T) => update(change(value)),
   };
 }
 
@@ -63,6 +64,10 @@ export function useOrders() {
   const orders = useSyncExternalStore(ordersStore.subscribe, ordersStore.getValue, ordersStore.getValue);
   const loading = useSyncExternalStore(ordersStore.subscribe, ordersStore.getLoading, ordersStore.getLoading);
   return useMemo(() => ({ orders, loading }), [orders, loading]);
+}
+
+export function updateCachedOrderStatus(orderId: string, orderStatus: OrderStatus) {
+  ordersStore.updateValue(orders => orders.map(order => order.id === orderId ? { ...order, orderStatus } : order));
 }
 
 export function useCustomers() {

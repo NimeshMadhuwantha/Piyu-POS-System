@@ -79,7 +79,7 @@ function ItemList({ order }: { order: Order }) {
   return <>
     <div className="item-list-meta"><b>{order.orderCode}</b><span>{order.customer.name}</span></div>
     <table className="receipt-item-list">
-      <thead><tr><th>Item</th><th>Weight</th><th>Qty</th></tr></thead>
+      <thead><tr><th>Item</th><th>Unit weight</th><th>Qty</th></tr></thead>
       <tbody>{order.items.map(item => {
         const unitWeight = Math.max(0, item.weight || 0);
         return <tr key={item.id}><td>{item.name}</td><td>{unitWeight > 0 ? formatWeight(unitWeight) : ""}</td><td>{item.quantity}</td></tr>;

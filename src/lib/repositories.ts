@@ -163,7 +163,9 @@ export function updateOrderStatus(order: Order, status: OrderStatus, actor: AppU
     clientTimestamp: now,
     serverTimestamp: serverTimestamp(),
   });
-  queueCommit(batch.commit());
+  const commit = batch.commit();
+  queueCommit(commit);
+  return commit;
 }
 
 export function deleteOrder(order: Order, actor: AppUser) {
