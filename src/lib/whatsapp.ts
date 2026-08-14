@@ -1,4 +1,4 @@
-import { formatLKR } from "@/lib/calculations";
+import { calculateLineWeight, formatLKR, orderTotalWeight } from "@/lib/calculations";
 import { primaryOrderStatus } from "@/lib/order-status";
 import type { Order } from "@/types";
 
@@ -10,7 +10,7 @@ function whatsappNumber(value: string) {
 
 export function invoiceMessage(order: Order) {
   const items = order.items.map((item, index) =>
-    `${index + 1}. ${item.name}${item.variant ? ` (${item.variant})` : ""} x ${item.quantity} - ${formatLKR(item.subtotal)}`,
+    `${index + 1}. ${item.name}${item.variant ? ` (${item.variant})` : ""} | Qty: ${item.quantity}${item.weight ? ` | Weight: ${calculateLineWeight(item.weight, item.quantity).toLocaleString("en-LK", { maximumFractionDigits: 2 })} g` : ""} | ${formatLKR(item.subtotal)}`,
   ).join("\n");
   return [
     `*INVOICE ${order.orderCode}*`,
@@ -21,6 +21,7 @@ export function invoiceMessage(order: Order) {
     "",
     "*Items*",
     items,
+    `Total weight: ${orderTotalWeight(order).toLocaleString("en-LK", { maximumFractionDigits: 2 })} g`,
     "",
     `Items subtotal: ${formatLKR(order.itemsSubtotal)}`,
     `Order discount: -${formatLKR(order.orderDiscount)}`,
