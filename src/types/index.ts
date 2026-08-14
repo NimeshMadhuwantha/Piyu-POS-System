@@ -36,4 +36,4 @@ export interface CatalogItem { id: string; name: string; unit: string; weight: n
 export interface ProductCategory { id: string; name: string; items: CatalogItem[]; }
 export interface ShippingRate { id: string; minWeight: number; maxWeight: number; price: number; }
 export interface ShippingOption { id: string; name: string; courier: string; rates: ShippingRate[]; }
-export interface BusinessSettings { businessName: string; phone: string; address: string; receiptWidth: "58mm" | "80mm" | "A4"; footer: string; productCategories?: ProductCategory[]; shippingOptions?: ShippingOption[]; }
+export interface BusinessSettings { businessName: string; phone: string; address: string; receiptWidth: "58mm" | "80mm" | "A4/4" | "A4"; footer: string; productCategories?: ProductCategory[]; shippingOptions?: ShippingOption[]; }

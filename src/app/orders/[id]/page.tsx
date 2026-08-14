@@ -2,7 +2,7 @@
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, Edit3, Printer, Trash2 } from "lucide-react";
 import { useOrders } from "@/hooks/use-data";
 import { useApp } from "@/components/providers";
@@ -23,17 +23,43 @@ export default function OrderDetail() {
   const { user } = useApp();
   const order = orders.find(item => item.id === id);
   const [type, setType] = useState<ReceiptType | "all">("full");
+  const printArea = useRef<HTMLDivElement>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const autoPrinted = useRef(false);
   const [settings, setSettings] = useState<BusinessSettings>({ businessName: "Piyu POS", phone: "", address: "", receiptWidth: "80mm", footer: "Thank you!" });
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
 
-  useEffect(() => { getBusinessSettings().then(setSettings).catch(() => undefined); }, []);
+  const printReceipt = useCallback(async (receiptType: ReceiptType | "all") => {
+    setType(receiptType);
+    document.body.classList.add("preparing-receipt-print");
+    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+
+    const margin = settings.receiptWidth === "A4" ? 10 : 5;
+    let pageSize = settings.receiptWidth === "A4" ? "A4 portrait" : settings.receiptWidth === "A4/4" ? "105mm 148.5mm" : "80mm 200mm";
+    if (settings.receiptWidth === "58mm" || settings.receiptWidth === "80mm") {
+      const contentHeight = Math.max(0, ...Array.from(printArea.current?.querySelectorAll<HTMLElement>(".receipt") || []).map(receipt => receipt.getBoundingClientRect().height));
+      const pageHeight = Math.max(80, Math.ceil(contentHeight * 25.4 / 96 + margin * 2 + 1));
+      pageSize = `${settings.receiptWidth} ${pageHeight}mm`;
+    }
+
+    document.body.classList.remove("preparing-receipt-print");
+    document.getElementById("receipt-print-page-size")?.remove();
+    const pageStyle = document.createElement("style");
+    pageStyle.id = "receipt-print-page-size";
+    pageStyle.media = "print";
+    pageStyle.textContent = `@page { size: ${pageSize}; margin: ${margin}mm; }`;
+    document.head.appendChild(pageStyle);
+    window.addEventListener("afterprint", () => pageStyle.remove(), { once: true });
+    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    window.print();
+  }, [settings.receiptWidth]);
+
+  useEffect(() => { getBusinessSettings().then(setSettings).catch(() => undefined).finally(() => setSettingsLoaded(true)); }, []);
   useEffect(() => {
-    if (!order || searchParams.get("print") !== "full" || autoPrinted.current) return;
+    if (!order || !settingsLoaded || searchParams.get("print") !== "full" || autoPrinted.current) return;
     autoPrinted.current = true;
-    setType("full");
-    setTimeout(() => window.print(), 150);
-  }, [order, searchParams]);
+    printReceipt("full");
+  }, [order, printReceipt, searchParams, settingsLoaded]);
 
   if (loading) return <div>Loading order...</div>;
   if (!order) return <div className="card">Order not found in the local database.</div>;
@@ -44,8 +70,6 @@ export default function OrderDetail() {
     updateOrderStatus(order, status, user);
   }
 
-  function print(receiptType: ReceiptType | "all") { setType(receiptType); setTimeout(() => window.print(), 50); }
-
   function confirmDelete() {
     if (!order || !user || user.role !== "admin") return;
     deleteOrder(order, user);
@@ -55,7 +79,7 @@ export default function OrderDetail() {
 
   return <>
     <div className="no-print">
-      <div className="page-head"><div><h1>{order.orderCode}</h1><span className="muted">{order.pending ? "Saved locally - waiting to sync" : "Synced"}</span></div><div className="order-top-print"><button className="btn secondary" onClick={() => print("full")}><Printer size={17}/>Full bill</button><button className="btn secondary" onClick={() => print("shipping")}><Printer size={17}/>Shipping details</button><button className="btn secondary" onClick={() => print("customer")}><Printer size={17}/>Client details</button></div></div>
+      <div className="page-head"><div><h1>{order.orderCode}</h1><span className="muted">{order.pending ? "Saved locally - waiting to sync" : "Synced"}</span></div><div className="order-top-print"><button className="btn secondary" onClick={() => printReceipt("full")}><Printer size={17}/>Full bill</button><button className="btn secondary" onClick={() => printReceipt("shipping")}><Printer size={17}/>Shipping details</button><button className="btn secondary" onClick={() => printReceipt("customer")}><Printer size={17}/>Client details</button></div></div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14}}>
         <section className="card"><h2 className="section-title">Customer details</h2><b>{order.customer.name}</b>{order.customer.email && <p>{order.customer.email}</p>}<p>{order.customer.mobile1}{order.customer.mobile2 && ` / ${order.customer.mobile2}`}</p><p>{[order.customer.address1,order.customer.address2,order.customer.city,order.customer.district].filter(Boolean).join(", ")}</p>{order.customer.note && <p className="muted">{order.customer.note}</p>}</section>
         <section className="card"><h2 className="section-title">Delivery details</h2><p><b>{order.shipping.method}</b></p><p>Courier: {order.shipping.courier || "-"}<br/>Tracking: {order.shipping.trackingNumber || "-"}<br/>Weight: {order.shipping.parcelWeight || "-"}</p><p>Requested: {order.requestDate}<br/>Delivery: {order.deliveryDate || "Not set"}</p></section>
@@ -66,6 +90,6 @@ export default function OrderDetail() {
       <div className="order-bottom-actions"><Link className="btn secondary" href={`/orders/${id}/edit`}><Edit3 size={17}/>Edit order</Link>{user?.role === "admin" && <button className="btn danger" onClick={() => setDeleteOpen(true)}><Trash2 size={17}/>Delete order</button>}</div>
     </div>
     {deleteOpen && <div className="modal-backdrop no-print" role="presentation" onMouseDown={() => setDeleteOpen(false)}><section className="card confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="delete-title" onMouseDown={event => event.stopPropagation()}><AlertTriangle size={38} color="#dc2626"/><h2 id="delete-title">Delete {order.orderCode}?</h2><p>This permanently removes the order from the order list and Firebase after synchronization. An audit log of the deletion will remain.</p><div style={{display:"flex",justifyContent:"flex-end",gap:8}}><button className="btn secondary" onClick={() => setDeleteOpen(false)}>Keep order</button><button className="btn danger" onClick={confirmDelete}>Yes, delete order</button></div></section></div>}
-    <div className="print-only">{type === "all" ? <><Receipt order={order} type="shipping" settings={settings}/><div style={{breakAfter:"page"}}/><Receipt order={order} type="customer" settings={settings}/><div style={{breakAfter:"page"}}/><Receipt order={order} type="full" settings={settings}/></> : <Receipt order={order} type={type} settings={settings}/>}</div>
+    <div className="print-only" ref={printArea}>{type === "all" ? <><Receipt order={order} type="shipping" settings={settings}/><div style={{breakAfter:"page"}}/><Receipt order={order} type="customer" settings={settings}/><div style={{breakAfter:"page"}}/><Receipt order={order} type="full" settings={settings}/></> : <Receipt order={order} type={type} settings={settings}/>}</div>
   </>;
 }
