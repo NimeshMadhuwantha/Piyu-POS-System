@@ -81,8 +81,8 @@ function ItemList({ order }: { order: Order }) {
     <table className="receipt-item-list">
       <thead><tr><th>Item</th><th>Weight</th><th>Qty</th></tr></thead>
       <tbody>{order.items.map(item => {
-        const lineWeight = calculateLineWeight(item.weight, item.quantity);
-        return <tr key={item.id}><td>{item.name}</td><td>{lineWeight > 0 ? formatWeight(lineWeight) : ""}</td><td>{item.quantity}</td></tr>;
+        const unitWeight = Math.max(0, item.weight || 0);
+        return <tr key={item.id}><td>{item.name}</td><td>{unitWeight > 0 ? formatWeight(unitWeight) : ""}</td><td>{item.quantity}</td></tr>;
       })}</tbody>
     </table>
     <div className="item-list-total"><span>Total price</span><b>{formatLKR(order.grandTotal)}</b></div>
