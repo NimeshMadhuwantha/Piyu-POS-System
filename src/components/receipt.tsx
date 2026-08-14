@@ -5,56 +5,102 @@ import { primaryOrderStatus } from "@/lib/order-status";
 
 export type ReceiptType = "customer" | "shipping" | "full";
 
+const hasText = (value?: string) => Boolean(value?.trim());
+const formatWeight = (weight: number) => `${weight.toLocaleString("en-LK", { maximumFractionDigits: 2 })} g`;
+
 export function Receipt({ order, type, settings }: { order: Order; type: ReceiptType; settings: BusinessSettings }) {
-  const address = [order.customer.address1, order.customer.address2, order.customer.city, order.customer.district].filter(Boolean).join(", ");
-  const title = type === "shipping" ? "DELIVERY DETAILS" : type === "customer" ? "CUSTOMER DETAILS & ITEMS" : "FULL BILL";
-
+  const address = [order.customer.address1, order.customer.address2, order.customer.city, order.customer.district].filter(hasText).join(", ");
+  const totalQuantity = order.items.reduce((sum, item) => sum + Math.max(0, item.quantity || 0), 0);
+  const calculatedWeight = order.items.reduce((sum, item) => sum + Math.max(0, item.weight || 0) * Math.max(0, item.quantity || 0), 0);
+  const totalWeight = order.shipping.parcelWeight || calculatedWeight;
   const paperClass = settings.receiptWidth === "A4/4" ? "A4-quarter" : settings.receiptWidth;
-  return <article className={`receipt width-${paperClass} card`} style={{ fontSize: 12, color: "#000" }}>
-    <header style={{ textAlign: "center", borderBottom: "1px dashed #777", paddingBottom: 10, marginBottom: 10 }}>
-      <h2 style={{ margin: 0 }}>{settings.businessName}</h2>
-      {settings.address && <div>{settings.address}</div>}
-      {settings.phone && <div>{settings.phone}</div>}
-      <b>{title}</b>
-    </header>
-    <div><b>{order.orderCode}</b><span style={{ float: "right" }}>{format(new Date(order.createdAtClient), "dd/MM/yyyy HH:mm")}</span></div>
-    <hr/>
-    <h3>Customer details</h3>
-    <b>{order.customer.name}</b>
-    {order.customer.email && <div>{order.customer.email}</div>}
-    <div>{order.customer.mobile1}{order.customer.mobile2 && ` / ${order.customer.mobile2}`}</div>
-    <div>{address}</div>
+  const isItemList = type === "customer";
 
-    {type === "shipping" ? <>
-      <hr/>
-      <p><b>Method:</b> {order.shipping.method}</p>
-      <p><b>Courier:</b> {order.shipping.courier || "-"}</p>
-      <p><b>Tracking:</b> {order.shipping.trackingNumber || "-"}</p>
-      <p><b>Parcel weight:</b> {order.shipping.parcelWeight || "-"}</p>
-      <p><b>Delivery date:</b> {order.deliveryDate || "Not set"}</p>
-      <p style={{ fontSize: 18 }}><b>COD: {formatLKR(order.payment.method === "Cash on Delivery (COD)" ? order.balance : 0)}</b></p>
-    </> : <>
-      <h3>Items</h3>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}><tbody>{order.items.map(item => <tr key={item.id}><td style={{ padding: "4px 0" }}>{item.name}{item.variant && ` (${item.variant})`} x {item.quantity}</td><td style={{ textAlign: "right" }}>{formatLKR(item.subtotal)}</td></tr>)}</tbody></table>
-      <hr/>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 4 }}>
-        <span>Items subtotal</span><b>{formatLKR(order.itemsSubtotal)}</b>
-        <span>Discount</span><b>-{formatLKR(order.orderDiscount)}</b>
-        <span>Delivery</span><b>{formatLKR(order.deliveryCharge)}</b>
-        <strong>Grand total</strong><strong>{formatLKR(order.grandTotal)}</strong>
-        <span>Paid</span><b>{formatLKR(order.amountPaid)}</b>
-        <span>{order.payment.method === "Cash on Delivery (COD)" ? "COD amount" : "Balance"}</span><b>{formatLKR(order.balance)}</b>
-      </div>
-      <hr/>
-      <p><b>Payment:</b> {order.payment.method} - {order.paymentStatus}</p>
-      {type === "full" && <>
-        <p><b>Shipping:</b> {order.shipping.method}, {order.shipping.courier || "No courier"}</p>
-        <p><b>Tracking:</b> {order.shipping.trackingNumber || "-"}</p>
-        <p><b>Request date:</b> {order.requestDate} <b>Delivery date:</b> {order.deliveryDate || "-"}</p>
-        <p><b>Status:</b> {primaryOrderStatus(order.orderStatus)}</p>
-        {order.notes && <p><b>Notes:</b> {order.notes}</p>}
-      </>}
+  return <article className={`receipt width-${paperClass} card receipt-${type}`} style={{ fontSize: 12, color: "#000" }}>
+    {!isItemList && <header className="receipt-header">
+      <h2>{settings.businessName}</h2>
+      {hasText(settings.address) && <span>{settings.address}</span>}
+      {hasText(settings.phone) && <span>{settings.phone}</span>}
+    </header>}
+
+    {isItemList ? <ItemList order={order}/> : <>
+      <div className="receipt-order-meta"><b>{order.orderCode}</b><span>{format(new Date(order.createdAtClient), "dd/MM/yyyy HH:mm")}</span></div>
+      {type === "shipping" ? <ShippingBill order={order} address={address} totalQuantity={totalQuantity} totalWeight={totalWeight}/> : <FullBill order={order} address={address}/>}
     </>}
-    <footer style={{ textAlign: "center", borderTop: "1px dashed #777", marginTop: 12, paddingTop: 9 }}>{settings.footer}</footer>
+
+    {!isItemList && hasText(settings.footer) && <footer className="receipt-footer">{settings.footer}</footer>}
   </article>;
+}
+
+function FullBill({ order, address }: { order: Order; address: string }) {
+  return <>
+    <section className="receipt-section receipt-customer">
+      <b>{order.customer.name}</b>
+      {hasText(order.customer.email) && <span>{order.customer.email}</span>}
+      {hasText(order.customer.mobile1) && <span>{order.customer.mobile1}{hasText(order.customer.mobile2) && ` / ${order.customer.mobile2}`}</span>}
+      {address && <span>{address}</span>}
+      {hasText(order.customer.note) && <span><b>Customer note:</b> {order.customer.note}</span>}
+    </section>
+
+    <table className="receipt-items"><tbody>{order.items.map(item => <tr key={item.id}>
+      <td>{item.name}{hasText(item.variant) && ` (${item.variant})`} x {item.quantity}</td>
+      <td>{formatLKR(item.subtotal)}</td>
+    </tr>)}</tbody></table>
+
+    <div className="receipt-totals">
+      <span>Items subtotal</span><b>{formatLKR(order.itemsSubtotal)}</b>
+      {order.orderDiscount > 0 && <><span>Discount</span><b>-{formatLKR(order.orderDiscount)}</b></>}
+      {order.deliveryCharge > 0 && <><span>Delivery</span><b>{formatLKR(order.deliveryCharge)}</b></>}
+      <strong>Grand total</strong><strong>{formatLKR(order.grandTotal)}</strong>
+      {order.amountPaid > 0 && <><span>Paid</span><b>{formatLKR(order.amountPaid)}</b></>}
+    </div>
+
+    <section className="receipt-section receipt-extra">
+      {hasText(order.payment.method) && <span><b>Payment:</b> {order.payment.method}{hasText(order.paymentStatus) && ` - ${order.paymentStatus}`}</span>}
+      {hasText(order.shipping.method) && <span><b>Shipping:</b> {order.shipping.method}{hasText(order.shipping.courier) && `, ${order.shipping.courier}`}</span>}
+      {hasText(order.shipping.trackingNumber) && <span><b>Tracking:</b> {order.shipping.trackingNumber}</span>}
+      {hasText(order.requestDate) && <span><b>Request date:</b> {order.requestDate}</span>}
+      {hasText(order.deliveryDate) && <span><b>Delivery date:</b> {order.deliveryDate}</span>}
+      <span><b>Status:</b> {primaryOrderStatus(order.orderStatus)}</span>
+      {hasText(order.shipping.note) && <span><b>Shipping note:</b> {order.shipping.note}</span>}
+      {hasText(order.notes) && <span><b>Notes:</b> {order.notes}</span>}
+    </section>
+  </>;
+}
+
+function ItemList({ order }: { order: Order }) {
+  return <>
+    <div className="item-list-meta"><b>{order.orderCode}</b><span>{order.customer.name}</span></div>
+    <table className="receipt-item-list">
+      <thead><tr><th>Item</th><th>Weight</th><th>Qty</th></tr></thead>
+      <tbody>{order.items.map(item => {
+        const lineWeight = Math.max(0, item.weight || 0) * Math.max(0, item.quantity || 0);
+        return <tr key={item.id}><td>{item.name}</td><td>{lineWeight > 0 ? formatWeight(lineWeight) : ""}</td><td>{item.quantity} {item.unit}</td></tr>;
+      })}</tbody>
+    </table>
+    <div className="item-list-total"><span>Total price</span><b>{formatLKR(order.grandTotal)}</b></div>
+  </>;
+}
+
+function ShippingBill({ order, address, totalQuantity, totalWeight }: { order: Order; address: string; totalQuantity: number; totalWeight: number }) {
+  return <>
+    <section className="receipt-section shipping-recipient">
+      <b>{order.customer.name}</b>
+      {address && <span>{address}</span>}
+      {hasText(order.customer.mobile1) && <span><b>Contact:</b> {order.customer.mobile1}{hasText(order.customer.mobile2) && ` / ${order.customer.mobile2}`}</span>}
+      {hasText(order.customer.email) && <span>{order.customer.email}</span>}
+    </section>
+    <div className="shipping-bill-summary">
+      {hasText(order.shipping.method) && <><span>Shipping option</span><b>{order.shipping.method}</b></>}
+      {hasText(order.shipping.courier) && <><span>Courier / company</span><b>{order.shipping.courier}</b></>}
+      {hasText(order.shipping.trackingNumber) && <><span>Tracking</span><b>{order.shipping.trackingNumber}</b></>}
+      <span>Total items</span><b>{totalQuantity}</b>
+      {totalWeight > 0 && <><span>Total weight</span><b>{formatWeight(totalWeight)}</b></>}
+      {order.deliveryCharge > 0 && <><span>Shipping charge</span><b>{formatLKR(order.deliveryCharge)}</b></>}
+      <strong>Total price</strong><strong>{formatLKR(order.grandTotal)}</strong>
+      {hasText(order.requestDate) && <><span>Request date</span><b>{order.requestDate}</b></>}
+      {hasText(order.deliveryDate) && <><span>Delivery date</span><b>{order.deliveryDate}</b></>}
+    </div>
+    {hasText(order.shipping.note) && <section className="receipt-section receipt-note"><b>Shipping note:</b> {order.shipping.note}</section>}
+  </>;
 }
