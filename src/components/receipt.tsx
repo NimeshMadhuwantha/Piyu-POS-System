@@ -9,7 +9,8 @@ export function Receipt({ order, type, settings }: { order: Order; type: Receipt
   const address = [order.customer.address1, order.customer.address2, order.customer.city, order.customer.district].filter(Boolean).join(", ");
   const title = type === "shipping" ? "DELIVERY DETAILS" : type === "customer" ? "CUSTOMER DETAILS & ITEMS" : "FULL BILL";
 
-  return <article className={`receipt width-${settings.receiptWidth} card`} style={{ fontSize: 12, color: "#000" }}>
+  const paperClass = settings.receiptWidth === "A4/4" ? "A4-quarter" : settings.receiptWidth;
+  return <article className={`receipt width-${paperClass} card`} style={{ fontSize: 12, color: "#000" }}>
     <header style={{ textAlign: "center", borderBottom: "1px dashed #777", paddingBottom: 10, marginBottom: 10 }}>
       <h2 style={{ margin: 0 }}>{settings.businessName}</h2>
       {settings.address && <div>{settings.address}</div>}

@@ -8,6 +8,7 @@ type DeleteTarget = { kind: "category"; id: string; label: string } | { kind: "i
 const id = () => crypto.randomUUID();
 const blankItem = (): CatalogItem => ({ id: id(), name: "", unit: "pcs", weight: 0, unitPrice: 0, discount: 0 });
 const blankRate = (): ShippingRate => ({ id: id(), minWeight: 0, maxWeight: 0, price: 0 });
+const selectInitialZero = (event: React.FocusEvent<HTMLElement>) => { const target = event.target; if (target instanceof HTMLInputElement && target.type === "number" && Number(target.value) === 0) target.select(); };
 
 export function CatalogSettings({ settings, onChange }: { settings: BusinessSettings; onChange: (settings: BusinessSettings) => void }) {
   const categories = settings.productCategories || [];
@@ -62,7 +63,7 @@ export function CatalogSettings({ settings, onChange }: { settings: BusinessSett
   }
 
   return <>
-    <section className="card catalog-settings" style={{ maxWidth: 1000, marginBottom: 16 }}>
+    <section className="card catalog-settings" style={{ maxWidth: 1000, marginBottom: 16 }} onFocus={selectInitialZero}>
       <h2 className="section-title">Product categories & items</h2><p className="muted">Create the selectable products used in new orders. Weight is entered in grams.</p>
       <div className="catalog-create"><label className="field">Category name<input value={categoryName} onChange={event => setCategoryName(event.target.value)} placeholder="Example: Cakes"/></label><button type="button" className="btn" onClick={saveCategory}>{editingCategory ? "Update category" : <><Plus size={17}/>Add category</>}</button>{editingCategory && <button type="button" className="btn secondary" onClick={() => { setEditingCategory(null); setCategoryName(""); }}>Cancel</button>}</div>
       <div className="catalog-list">{categories.map(category => { const draft = itemDrafts[category.id] || blankItem(); return <article className="catalog-group" key={category.id}><header><h3>{category.name}</h3><div><button type="button" className="icon-btn" aria-label={`Edit ${category.name}`} onClick={() => { setEditingCategory(category.id); setCategoryName(category.name); }}><Pencil size={16}/></button><button type="button" className="icon-btn danger-icon" aria-label={`Delete ${category.name}`} onClick={() => setDeleteTarget({ kind: "category", id: category.id, label: category.name })}><Trash2 size={16}/></button></div></header>
@@ -71,7 +72,7 @@ export function CatalogSettings({ settings, onChange }: { settings: BusinessSett
       </article>; })}{!categories.length && <p className="muted">No product categories yet.</p>}</div>
     </section>
 
-    <section className="card catalog-settings" style={{ maxWidth: 1000, marginBottom: 16 }}>
+    <section className="card catalog-settings" style={{ maxWidth: 1000, marginBottom: 16 }} onFocus={selectInitialZero}>
       <h2 className="section-title">Shipping methods & weight rates</h2><p className="muted">Create courier options and prices for parcel-weight ranges in grams.</p>
       {error && <p className="form-error" role="alert">{error}</p>}
       <div className="catalog-create shipping-create"><label className="field">Shipping method<input value={shippingDraft.name} onChange={event => setShippingDraft({ ...shippingDraft, name: event.target.value })} placeholder="Example: Islandwide Delivery"/></label><label className="field">Courier / company<input value={shippingDraft.courier} onChange={event => setShippingDraft({ ...shippingDraft, courier: event.target.value })}/></label><button type="button" className="btn" onClick={saveShipping}>{editingShipping ? "Update method" : <><Plus size={17}/>Add method</>}</button></div>
