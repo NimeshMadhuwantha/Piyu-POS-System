@@ -25,14 +25,14 @@ export function Receipt({ order, type, settings }: { order: Order; type: Receipt
 
     {isItemList ? <ItemList order={order}/> : <>
       <div className="receipt-order-meta"><b>{order.orderCode}</b><span>{format(new Date(order.createdAtClient), "dd/MM/yyyy HH:mm")}</span></div>
-      {type === "shipping" ? <ShippingBill order={order} address={address} totalQuantity={totalQuantity} totalWeight={totalWeight}/> : <FullBill order={order} address={address}/>}
+      {type === "shipping" ? <ShippingBill order={order} address={address} totalQuantity={totalQuantity} totalWeight={totalWeight}/> : <FullBill order={order} address={address} totalWeight={totalWeight}/>}
     </>}
 
     {!isItemList && hasText(settings.footer) && <footer className="receipt-footer">{settings.footer}</footer>}
   </article>;
 }
 
-function FullBill({ order, address }: { order: Order; address: string }) {
+function FullBill({ order, address, totalWeight }: { order: Order; address: string; totalWeight: number }) {
   return <>
     <section className="receipt-section receipt-customer">
       <b>{order.customer.name}</b>
@@ -42,10 +42,18 @@ function FullBill({ order, address }: { order: Order; address: string }) {
       {hasText(order.customer.note) && <span><b>Customer note:</b> {order.customer.note}</span>}
     </section>
 
-    <table className="receipt-items"><tbody>{order.items.map(item => <tr key={item.id}>
-      <td>{item.name}{hasText(item.variant) && ` (${item.variant})`} x {item.quantity}</td>
-      <td>{formatLKR(item.subtotal)}</td>
-    </tr>)}</tbody></table>
+    <table className="receipt-items">
+      <thead><tr><th>Item</th><th>Weight</th><th>Price</th></tr></thead>
+      <tbody>{order.items.map(item => {
+        const lineWeight = Math.max(0, item.weight || 0) * Math.max(0, item.quantity || 0);
+        return <tr key={item.id}>
+          <td>{item.name}{hasText(item.variant) && ` (${item.variant})`} x {item.quantity}</td>
+          <td>{lineWeight > 0 ? formatWeight(lineWeight) : ""}</td>
+          <td>{formatLKR(item.subtotal)}</td>
+        </tr>;
+      })}</tbody>
+    </table>
+    {totalWeight > 0 && <div className="receipt-total-weight"><span>Total weight</span><b>{formatWeight(totalWeight)}</b></div>}
 
     <div className="receipt-totals">
       <span>Items subtotal</span><b>{formatLKR(order.itemsSubtotal)}</b>
@@ -75,7 +83,7 @@ function ItemList({ order }: { order: Order }) {
       <thead><tr><th>Item</th><th>Weight</th><th>Qty</th></tr></thead>
       <tbody>{order.items.map(item => {
         const lineWeight = Math.max(0, item.weight || 0) * Math.max(0, item.quantity || 0);
-        return <tr key={item.id}><td>{item.name}</td><td>{lineWeight > 0 ? formatWeight(lineWeight) : ""}</td><td>{item.quantity} {item.unit}</td></tr>;
+        return <tr key={item.id}><td>{item.name}</td><td>{lineWeight > 0 ? formatWeight(lineWeight) : ""}</td><td>{item.quantity}</td></tr>;
       })}</tbody>
     </table>
     <div className="item-list-total"><span>Total price</span><b>{formatLKR(order.grandTotal)}</b></div>
