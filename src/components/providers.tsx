@@ -5,7 +5,7 @@ import { disableNetwork, enableNetwork } from "firebase/firestore";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { auth, db, firebaseConfigured } from "@/lib/firebase";
-import { FIRESTORE_CONNECTION_EVENT, FIRESTORE_SYNC_ERROR_EVENT, getAuthorizedUser } from "@/lib/repositories";
+import { FIRESTORE_SYNC_ERROR_EVENT, getAuthorizedUser } from "@/lib/repositories";
 import type { AppUser } from "@/types";
 
 type AppContextValue = {
@@ -35,22 +35,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const syncBrowserState = () => {
-      setOnline(false);
-      void (navigator.onLine ? enableNetwork(db) : disableNetwork(db)).catch(() => undefined);
-    };
-    const syncFirestoreState = (event: Event) => {
-      const connected = (event as CustomEvent<{ connected: boolean }>).detail.connected;
-      setOnline(navigator.onLine && connected);
-      if (connected) setSetupError(current => current?.startsWith("A local change") ? null : current);
+      const browserOnline = navigator.onLine;
+      setOnline(browserOnline);
+      void (browserOnline ? enableNetwork(db) : disableNetwork(db)).catch(() => undefined);
+      if (browserOnline) setSetupError(current => current?.startsWith("A local change") ? null : current);
     };
     const syncWriteError = (event: Event) => {
       const message = (event as CustomEvent<string>).detail;
-      setOnline(false);
       setSetupError(`A local change is saved on this device but could not sync to Firebase: ${message}`);
     };
     window.addEventListener("online", syncBrowserState);
     window.addEventListener("offline", syncBrowserState);
-    window.addEventListener(FIRESTORE_CONNECTION_EVENT, syncFirestoreState);
     window.addEventListener(FIRESTORE_SYNC_ERROR_EVENT, syncWriteError);
     syncBrowserState();
     if ("serviceWorker" in navigator) {
@@ -70,7 +65,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => {
       window.removeEventListener("online", syncBrowserState);
       window.removeEventListener("offline", syncBrowserState);
-      window.removeEventListener(FIRESTORE_CONNECTION_EVENT, syncFirestoreState);
       window.removeEventListener(FIRESTORE_SYNC_ERROR_EVENT, syncWriteError);
     };
   }, []);
