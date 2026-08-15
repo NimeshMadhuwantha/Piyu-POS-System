@@ -3,6 +3,7 @@
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { AlertTriangle, Edit3, Printer, Trash2 } from "lucide-react";
 import { updateCachedOrderStatus, useOrders } from "@/hooks/use-data";
 import { useApp } from "@/components/providers";
@@ -32,10 +33,8 @@ export default function OrderDetail() {
   const [settings, setSettings] = useState<BusinessSettings>({ businessName: "Piyu POS", phone: "", address: "", receiptWidth: "80mm", footer: "Thank you!" });
   const [settingsLoaded, setSettingsLoaded] = useState(false);
 
-  const printReceipt = useCallback(async (receiptType: ReceiptType | "all") => {
-    setType(receiptType);
+  const openPrintDialog = useCallback(() => {
     document.body.classList.add("preparing-receipt-print");
-    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
 
     const margin = settings.receiptWidth === "A4" ? 10 : 5;
     let pageSize = settings.receiptWidth === "A4" ? "A4 portrait" : settings.receiptWidth === "A4/4" ? "105mm 148.5mm" : "80mm 200mm";
@@ -53,17 +52,24 @@ export default function OrderDetail() {
     pageStyle.textContent = `@page { size: ${pageSize}; margin: ${margin}mm; }`;
     document.head.appendChild(pageStyle);
     window.addEventListener("afterprint", () => pageStyle.remove(), { once: true });
-    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
     window.print();
   }, [settings.receiptWidth]);
+
+  const printReceipt = useCallback((receiptType: ReceiptType | "all") => {
+    // Keep window.print() in the original tap/click call stack. Mobile browsers
+    // and installed PWAs can discard user activation after an awaited frame.
+    flushSync(() => setType(receiptType));
+    openPrintDialog();
+  }, [openPrintDialog]);
 
   useEffect(() => { getBusinessSettings().then(setSettings).catch(() => undefined).finally(() => setSettingsLoaded(true)); }, []);
   useEffect(() => {
     const requestedPrint = searchParams.get("print");
     if (!order || !settingsLoaded || !["full", "shipping", "item-list"].includes(requestedPrint || "") || autoPrinted.current) return;
     autoPrinted.current = true;
-    printReceipt(requestedPrint === "item-list" ? "customer" : requestedPrint as ReceiptType);
-  }, [order, printReceipt, searchParams, settingsLoaded]);
+    setType(requestedPrint === "item-list" ? "customer" : requestedPrint as ReceiptType);
+    requestAnimationFrame(() => requestAnimationFrame(openPrintDialog));
+  }, [order, openPrintDialog, searchParams, settingsLoaded]);
 
   if (loading) return <div>Loading order...</div>;
   if (!order) return <div className="card">Order not found in the local database.</div>;

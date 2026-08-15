@@ -13,7 +13,7 @@ import { RECORD_PAGE_SIZE, ViewMore } from "./view-more";
 function OrderActions({ order }: { order: Order }) {
   return <div className="order-actions no-print">
     <Link className="btn secondary" href={`/orders/${order.id}`}><Eye size={16}/>View bill</Link>
-    <Link className="btn secondary" href={`/orders/${order.id}?print=full`} target="_blank"><Printer size={16}/>Print bill</Link>
+    <Link className="btn secondary" href={`/orders/${order.id}?print=full`}><Printer size={16}/>Print bill</Link>
     <button className="btn whatsapp" type="button" onClick={() => openWhatsAppInvoice(order)}><MessageCircle size={16}/>Send invoice</button>
   </div>;
 }
