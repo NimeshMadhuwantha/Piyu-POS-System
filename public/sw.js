@@ -1,4 +1,4 @@
-const CACHE = "piyu-pos-shell-v6";
+const CACHE = "piyu-pos-shell-v7";
 const SHELL = ["/", "/dashboard", "/orders", "/orders/new", "/customers", "/logs", "/reports", "/settings", "/manifest.webmanifest"];
 
 self.addEventListener("install", event => {
