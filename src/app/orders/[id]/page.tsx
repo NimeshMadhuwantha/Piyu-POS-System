@@ -3,7 +3,6 @@
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { flushSync } from "react-dom";
 import { AlertTriangle, Edit3, Printer, Trash2 } from "lucide-react";
 import { updateCachedOrderStatus, useOrders } from "@/hooks/use-data";
 import { useApp } from "@/components/providers";
@@ -24,7 +23,6 @@ export default function OrderDetail() {
   const { user } = useApp();
   const order = orders.find(item => item.id === id);
   const totalWeight = order ? orderTotalWeight(order) : 0;
-  const [type, setType] = useState<ReceiptType | "all">("full");
   const printArea = useRef<HTMLDivElement>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [statusChange, setStatusChange] = useState<{ orderId: string; previous: PrimaryOrderStatus; next: PrimaryOrderStatus } | null>(null);
@@ -32,15 +30,18 @@ export default function OrderDetail() {
   const autoPrinted = useRef(false);
   const [settings, setSettings] = useState<BusinessSettings>({ businessName: "Piyu POS", phone: "", address: "", receiptWidth: "80mm", footer: "Thank you!" });
   const [settingsLoaded, setSettingsLoaded] = useState(false);
-  const [mobilePrintRequest, setMobilePrintRequest] = useState<ReceiptType | null>(null);
 
-  const openPrintDialog = useCallback(() => {
+  const printReceipt = useCallback((receiptType: ReceiptType) => {
+    const options = Array.from(printArea.current?.querySelectorAll<HTMLElement>(".receipt-print-option") || []);
+    const selected = options.find(option => option.dataset.receiptType === receiptType);
+    if (!selected) return;
+    options.forEach(option => option.classList.toggle("active-print-receipt", option === selected));
     document.body.classList.add("preparing-receipt-print");
 
     const margin = settings.receiptWidth === "A4" ? 10 : 5;
     let pageSize = settings.receiptWidth === "A4" ? "A4 portrait" : settings.receiptWidth === "A4/4" ? "105mm 148.5mm" : "80mm 200mm";
     if (settings.receiptWidth === "58mm" || settings.receiptWidth === "80mm") {
-      const contentHeight = Math.max(0, ...Array.from(printArea.current?.querySelectorAll<HTMLElement>(".receipt") || []).map(receipt => receipt.getBoundingClientRect().height));
+      const contentHeight = selected.querySelector<HTMLElement>(".receipt")?.getBoundingClientRect().height || 0;
       const pageHeight = Math.max(80, Math.ceil(contentHeight * 25.4 / 96 + margin * 2 + 1));
       pageSize = `${settings.receiptWidth} ${pageHeight}mm`;
     }
@@ -52,16 +53,12 @@ export default function OrderDetail() {
     pageStyle.media = "print";
     pageStyle.textContent = `@page { size: ${pageSize}; margin: ${margin}mm; }`;
     document.head.appendChild(pageStyle);
-    window.addEventListener("afterprint", () => pageStyle.remove(), { once: true });
+    window.addEventListener("afterprint", () => {
+      pageStyle.remove();
+      selected.classList.remove("active-print-receipt");
+    }, { once: true });
     window.print();
   }, [settings.receiptWidth]);
-
-  const printReceipt = useCallback((receiptType: ReceiptType | "all") => {
-    // Keep window.print() in the original tap/click call stack. Mobile browsers
-    // and installed PWAs can discard user activation after an awaited frame.
-    flushSync(() => setType(receiptType));
-    openPrintDialog();
-  }, [openPrintDialog]);
 
   useEffect(() => { getBusinessSettings().then(setSettings).catch(() => undefined).finally(() => setSettingsLoaded(true)); }, []);
   useEffect(() => {
@@ -69,16 +66,8 @@ export default function OrderDetail() {
     if (!order || !settingsLoaded || !["full", "shipping", "item-list"].includes(requestedPrint || "") || autoPrinted.current) return;
     autoPrinted.current = true;
     const requestedType = requestedPrint === "item-list" ? "customer" : requestedPrint as ReceiptType;
-    setType(requestedType);
-    const needsDirectTap = window.matchMedia("(max-width: 800px)").matches
-      || window.matchMedia("(display-mode: standalone)").matches
-      || ("standalone" in navigator && (navigator as Navigator & { standalone?: boolean }).standalone === true);
-    if (needsDirectTap) {
-      requestAnimationFrame(() => setMobilePrintRequest(requestedType));
-      return;
-    }
-    requestAnimationFrame(() => requestAnimationFrame(openPrintDialog));
-  }, [order, openPrintDialog, searchParams, settingsLoaded]);
+    requestAnimationFrame(() => printReceipt(requestedType));
+  }, [order, printReceipt, searchParams, settingsLoaded]);
 
   if (loading) return <div>Loading order...</div>;
   if (!order) return <div className="card">Order not found in the local database.</div>;
@@ -109,8 +98,7 @@ export default function OrderDetail() {
 
   return <>
     <div className="no-print">
-      {mobilePrintRequest && <div className="card mobile-print-prompt" role="status"><div><b>{mobilePrintRequest === "full" ? "Full bill" : mobilePrintRequest === "shipping" ? "Shipping details" : "Item list"} is ready</b><span>Tap below to open your device print screen.</span></div><button className="btn" type="button" onClick={() => printReceipt(mobilePrintRequest)}><Printer size={17}/>Print now</button></div>}
-      <div className="page-head"><div><h1>{order.orderCode}</h1><span className="muted">{order.pending ? "Saved locally - waiting to sync" : "Synced"}</span></div><div className="order-top-print"><button className="btn secondary" onClick={() => printReceipt("full")}><Printer size={17}/>Full bill</button><button className="btn secondary" onClick={() => printReceipt("shipping")}><Printer size={17}/>Shipping details</button><button className="btn secondary" onClick={() => printReceipt("customer")}><Printer size={17}/>Item list</button></div></div>
+      <div className="page-head"><div><h1>{order.orderCode}</h1><span className="muted">{order.pending ? "Saved locally - waiting to sync" : "Synced"}</span></div><div className="order-top-print"><button className="btn secondary" type="button" onClick={() => printReceipt("full")}><Printer size={17}/>Full bill</button><button className="btn secondary" type="button" onClick={() => printReceipt("shipping")}><Printer size={17}/>Shipping details</button><button className="btn secondary" type="button" onClick={() => printReceipt("customer")}><Printer size={17}/>Item list</button></div></div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14}}>
         <section className="card"><h2 className="section-title">Customer details</h2><b>{order.customer.name}</b>{order.customer.email && <p>{order.customer.email}</p>}<p>{order.customer.mobile1}{order.customer.mobile2 && ` / ${order.customer.mobile2}`}</p><p>{[order.customer.address1,order.customer.address2,order.customer.city,order.customer.district].filter(Boolean).join(", ")}</p>{order.customer.note && <p className="muted">{order.customer.note}</p>}</section>
         <section className="card"><h2 className="section-title">Delivery details</h2><p><b>{order.shipping.method}</b></p><p>Courier: {order.shipping.courier || "-"}<br/>Tracking: {order.shipping.trackingNumber || "-"}<br/>Total weight: {totalWeight > 0 ? `${totalWeight.toLocaleString("en-LK", { maximumFractionDigits: 2 })} g` : "-"}</p><p>Requested: {order.requestDate}<br/>Delivery: {order.deliveryDate || "Not set"}</p></section>
@@ -121,6 +109,6 @@ export default function OrderDetail() {
       <div className="order-bottom-actions"><Link className="btn secondary" href={`/orders/${id}/edit`}><Edit3 size={17}/>Edit order</Link>{user?.role === "admin" && <button className="btn danger" onClick={() => setDeleteOpen(true)}><Trash2 size={17}/>Delete order</button>}</div>
     </div>
     {deleteOpen && <div className="modal-backdrop no-print" role="presentation" onMouseDown={() => setDeleteOpen(false)}><section className="card confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="delete-title" onMouseDown={event => event.stopPropagation()}><AlertTriangle size={38} color="#dc2626"/><h2 id="delete-title">Delete {order.orderCode}?</h2><p>This permanently removes the order from the order list and Firebase after synchronization. An audit log of the deletion will remain.</p><div style={{display:"flex",justifyContent:"flex-end",gap:8}}><button className="btn secondary" onClick={() => setDeleteOpen(false)}>Keep order</button><button className="btn danger" onClick={confirmDelete}>Yes, delete order</button></div></section></div>}
-    <div className="print-only" ref={printArea}>{type === "all" ? <><Receipt order={displayedOrder} type="shipping" settings={settings}/><div style={{breakAfter:"page"}}/><Receipt order={displayedOrder} type="customer" settings={settings}/><div style={{breakAfter:"page"}}/><Receipt order={displayedOrder} type="full" settings={settings}/></> : <Receipt order={displayedOrder} type={type} settings={settings}/>}</div>
+    <div className="print-only" ref={printArea}><div className="receipt-print-option" data-receipt-type="full"><Receipt order={displayedOrder} type="full" settings={settings}/></div><div className="receipt-print-option" data-receipt-type="shipping"><Receipt order={displayedOrder} type="shipping" settings={settings}/></div><div className="receipt-print-option" data-receipt-type="customer"><Receipt order={displayedOrder} type="customer" settings={settings}/></div></div>
   </>;
 }
