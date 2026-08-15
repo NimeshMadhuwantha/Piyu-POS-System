@@ -32,6 +32,7 @@ export default function OrderDetail() {
   const autoPrinted = useRef(false);
   const [settings, setSettings] = useState<BusinessSettings>({ businessName: "Piyu POS", phone: "", address: "", receiptWidth: "80mm", footer: "Thank you!" });
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [mobilePrintRequest, setMobilePrintRequest] = useState<ReceiptType | null>(null);
 
   const openPrintDialog = useCallback(() => {
     document.body.classList.add("preparing-receipt-print");
@@ -67,7 +68,15 @@ export default function OrderDetail() {
     const requestedPrint = searchParams.get("print");
     if (!order || !settingsLoaded || !["full", "shipping", "item-list"].includes(requestedPrint || "") || autoPrinted.current) return;
     autoPrinted.current = true;
-    setType(requestedPrint === "item-list" ? "customer" : requestedPrint as ReceiptType);
+    const requestedType = requestedPrint === "item-list" ? "customer" : requestedPrint as ReceiptType;
+    setType(requestedType);
+    const needsDirectTap = window.matchMedia("(max-width: 800px)").matches
+      || window.matchMedia("(display-mode: standalone)").matches
+      || ("standalone" in navigator && (navigator as Navigator & { standalone?: boolean }).standalone === true);
+    if (needsDirectTap) {
+      requestAnimationFrame(() => setMobilePrintRequest(requestedType));
+      return;
+    }
     requestAnimationFrame(() => requestAnimationFrame(openPrintDialog));
   }, [order, openPrintDialog, searchParams, settingsLoaded]);
 
@@ -100,6 +109,7 @@ export default function OrderDetail() {
 
   return <>
     <div className="no-print">
+      {mobilePrintRequest && <div className="card mobile-print-prompt" role="status"><div><b>{mobilePrintRequest === "full" ? "Full bill" : mobilePrintRequest === "shipping" ? "Shipping details" : "Item list"} is ready</b><span>Tap below to open your device print screen.</span></div><button className="btn" type="button" onClick={() => printReceipt(mobilePrintRequest)}><Printer size={17}/>Print now</button></div>}
       <div className="page-head"><div><h1>{order.orderCode}</h1><span className="muted">{order.pending ? "Saved locally - waiting to sync" : "Synced"}</span></div><div className="order-top-print"><button className="btn secondary" onClick={() => printReceipt("full")}><Printer size={17}/>Full bill</button><button className="btn secondary" onClick={() => printReceipt("shipping")}><Printer size={17}/>Shipping details</button><button className="btn secondary" onClick={() => printReceipt("customer")}><Printer size={17}/>Item list</button></div></div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14}}>
         <section className="card"><h2 className="section-title">Customer details</h2><b>{order.customer.name}</b>{order.customer.email && <p>{order.customer.email}</p>}<p>{order.customer.mobile1}{order.customer.mobile2 && ` / ${order.customer.mobile2}`}</p><p>{[order.customer.address1,order.customer.address2,order.customer.city,order.customer.district].filter(Boolean).join(", ")}</p>{order.customer.note && <p className="muted">{order.customer.note}</p>}</section>
