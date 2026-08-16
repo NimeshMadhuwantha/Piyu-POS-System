@@ -30,6 +30,7 @@ const normalizeBusinessSettings = (settings: BusinessSettings): BusinessSettings
   shippingOptions: (settings.shippingOptions || []).map(option => ({ id: option.id, name: option.name, courier: option.courier || "" })),
 });
 export const MAX_COLLECTION_RECORDS = 3000;
+export const MAX_LOG_RECORDS = 10000;
 export const APP_STORAGE_QUOTA_BYTES = 150 * 1024 * 1024;
 
 function reportConnection(connected: boolean) {
@@ -265,7 +266,7 @@ export function subscribeCustomers(callback: (customers: Customer[]) => void): U
 
 export function subscribeLogs(callback: (logs: OrderLog[]) => void): Unsubscribe {
   return subscribeWithLocalMirror<OrderLog[]>("logs", callback, update => onSnapshot(
-    query(collection(db, "orderLogs"), orderBy("clientTimestamp", "desc"), limit(MAX_COLLECTION_RECORDS)),
+    query(collection(db, "orderLogs"), orderBy("clientTimestamp", "desc"), limit(MAX_LOG_RECORDS)),
     { includeMetadataChanges: true },
     snap => { reportConnection(!snap.metadata.fromCache); update(snap.docs.map(item => ({ id: item.id, ...item.data(), pending: item.metadata.hasPendingWrites } as OrderLog))); },
     () => reportConnection(false),
