@@ -1,3 +1,3 @@
 import type { Metadata,Viewport } from "next";import "./globals.css";import { AppProvider } from "@/components/providers";import { AppShell } from "@/components/app-shell";
 export const metadata:Metadata={title:"Piyu POS System",description:"Offline-first order and POS management",manifest:"/manifest.webmanifest",icons:{icon:"/icons/piyu%20logo.png",shortcut:"/icons/piyu%20logo.png",apple:"/icons/piyu%20logo.png"},appleWebApp:{capable:true,title:"Piyu POS"}};export const viewport:Viewport={themeColor:"#dc2626",width:"device-width",initialScale:1};
-export default function RootLayout({children}:{children:React.ReactNode}){return <html lang="en"><body><AppProvider><AppShell>{children}</AppShell></AppProvider></body></html>}
+export default function RootLayout({children}:{children:React.ReactNode}){return <html lang="en" suppressHydrationWarning><body><AppProvider><AppShell>{children}</AppShell></AppProvider></body></html>}

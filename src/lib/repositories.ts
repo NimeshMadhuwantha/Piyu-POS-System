@@ -15,6 +15,7 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { auth, db, firebaseApiKey, firebaseProjectId } from "@/lib/firebase";
+import { readLocalSnapshot, saveLocalSnapshot, type LocalSnapshotName } from "@/lib/local-data";
 import type { AppUser, BusinessSettings, Customer, Order, OrderLog, OrderStatus } from "@/types";
 
 export const FIRESTORE_SYNC_ERROR_EVENT = "piyu:firestore-sync-error";
@@ -43,6 +44,24 @@ function reportBackgroundSyncError(error: unknown) {
  */
 function queueCommit(commit: Promise<void>) {
   void commit.catch(reportBackgroundSyncError);
+}
+
+function subscribeWithLocalMirror<T>(name: LocalSnapshotName, callback: (value: T) => void, startRemote: (update: (value: T) => void) => Unsubscribe): Unsubscribe {
+  let stopped = false;
+  let stopRemote: Unsubscribe | null = null;
+  void readLocalSnapshot<T>(name).then(value => {
+    if (!stopped && value !== null) callback(value);
+  }).finally(() => {
+    if (stopped) return;
+    stopRemote = startRemote(value => {
+      saveLocalSnapshot(name, value);
+      callback(value);
+    });
+  });
+  return () => {
+    stopped = true;
+    stopRemote?.();
+  };
 }
 
 export async function getAuthorizedUser(uid: string): Promise<AppUser | null> {
@@ -87,15 +106,15 @@ export async function getAuthorizedUser(uid: string): Promise<AppUser | null> {
 }
 
 export function subscribeOrders(callback: (orders: Order[]) => void, onError?: (error: Error) => void): Unsubscribe {
-  return onSnapshot(
-    query(collection(db, "orders"), orderBy("createdAtClient", "desc"), limit(MAX_COLLECTION_RECORDS)),
-    { includeMetadataChanges: true },
-    snap => {
-      reportConnection(!snap.metadata.fromCache);
-      callback(snap.docs.map(item => ({ id: item.id, ...item.data(), pending: item.metadata.hasPendingWrites } as Order)));
-    },
-    error => { reportConnection(false); onError?.(error); },
-  );
+  return subscribeWithLocalMirror<Order[]>("orders", callback, update => onSnapshot(
+      query(collection(db, "orders"), orderBy("createdAtClient", "desc"), limit(MAX_COLLECTION_RECORDS)),
+      { includeMetadataChanges: true },
+      snap => {
+        reportConnection(!snap.metadata.fromCache);
+        update(snap.docs.map(item => ({ id: item.id, ...item.data(), pending: item.metadata.hasPendingWrites } as Order)));
+      },
+      error => { reportConnection(false); onError?.(error); },
+    ));
 }
 
 export function saveOrder(order: Order, actor: AppUser, existing?: Order): string {
@@ -188,21 +207,21 @@ export function deleteOrder(order: Order, actor: AppUser) {
 }
 
 export function subscribeCustomers(callback: (customers: Customer[]) => void): Unsubscribe {
-  return onSnapshot(
+  return subscribeWithLocalMirror<Customer[]>("customers", callback, update => onSnapshot(
     query(collection(db, "customers"), orderBy("updatedAtClient", "desc"), limit(MAX_COLLECTION_RECORDS)),
     { includeMetadataChanges: true },
-    snap => { reportConnection(!snap.metadata.fromCache); callback(snap.docs.map(item => ({ id: item.id, ...item.data() } as Customer))); },
+    snap => { reportConnection(!snap.metadata.fromCache); update(snap.docs.map(item => ({ id: item.id, ...item.data() } as Customer))); },
     () => reportConnection(false),
-  );
+  ));
 }
 
 export function subscribeLogs(callback: (logs: OrderLog[]) => void): Unsubscribe {
-  return onSnapshot(
+  return subscribeWithLocalMirror<OrderLog[]>("logs", callback, update => onSnapshot(
     query(collection(db, "orderLogs"), orderBy("clientTimestamp", "desc"), limit(MAX_COLLECTION_RECORDS)),
     { includeMetadataChanges: true },
-    snap => { reportConnection(!snap.metadata.fromCache); callback(snap.docs.map(item => ({ id: item.id, ...item.data(), pending: item.metadata.hasPendingWrites } as OrderLog))); },
+    snap => { reportConnection(!snap.metadata.fromCache); update(snap.docs.map(item => ({ id: item.id, ...item.data(), pending: item.metadata.hasPendingWrites } as OrderLog))); },
     () => reportConnection(false),
-  );
+  ));
 }
 
 export async function getBusinessSettings(): Promise<BusinessSettings> {
@@ -212,6 +231,8 @@ export async function getBusinessSettings(): Promise<BusinessSettings> {
       try { return JSON.parse(stored) as BusinessSettings; } catch { localStorage.removeItem(BUSINESS_SETTINGS_KEY); }
     }
   }
+  const localSettings = await readLocalSnapshot<BusinessSettings>("settings");
+  if (localSettings) return normalizeBusinessSettings(localSettings);
   try {
     const cached = await getDocFromCache(doc(db, "settings", "business"));
     if (cached.exists()) return normalizeBusinessSettings(cached.data() as BusinessSettings);
@@ -229,16 +250,17 @@ export function subscribeBusinessSettings(callback: (settings: BusinessSettings)
       try { callback(normalizeBusinessSettings(JSON.parse(stored) as BusinessSettings)); } catch { localStorage.removeItem(BUSINESS_SETTINGS_KEY); }
     }
   }
-  return onSnapshot(doc(db, "settings", "business"), { includeMetadataChanges: true }, snap => {
-    reportConnection(!snap.metadata.fromCache);
-    const settings = snap.exists() ? normalizeBusinessSettings(snap.data() as BusinessSettings) : DEFAULT_BUSINESS_SETTINGS;
-    if (typeof window !== "undefined") localStorage.setItem(BUSINESS_SETTINGS_KEY, JSON.stringify(settings));
-    callback(settings);
-  }, () => reportConnection(false));
+  return subscribeWithLocalMirror<BusinessSettings>("settings", settings => callback(normalizeBusinessSettings(settings)), update => onSnapshot(doc(db, "settings", "business"), { includeMetadataChanges: true }, snap => {
+      reportConnection(!snap.metadata.fromCache);
+      const settings = snap.exists() ? normalizeBusinessSettings(snap.data() as BusinessSettings) : DEFAULT_BUSINESS_SETTINGS;
+      if (typeof window !== "undefined") localStorage.setItem(BUSINESS_SETTINGS_KEY, JSON.stringify(settings));
+      update(settings);
+    }, () => reportConnection(false)));
 }
 
 export function saveBusinessSettings(settings: BusinessSettings) {
   if (typeof window !== "undefined") localStorage.setItem(BUSINESS_SETTINGS_KEY, JSON.stringify(settings));
+  saveLocalSnapshot("settings", normalizeBusinessSettings(settings));
   queueCommit(setDoc(doc(db, "settings", "business"), settings));
 }
 

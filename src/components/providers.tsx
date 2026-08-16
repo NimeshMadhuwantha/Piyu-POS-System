@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { auth, db, firebaseConfigured } from "@/lib/firebase";
 import { FIRESTORE_SYNC_ERROR_EVENT, getAuthorizedUser } from "@/lib/repositories";
 import type { AppUser } from "@/types";
+import { requestPersistentAppStorage } from "@/lib/local-data";
 
 type AppContextValue = {
   firebaseUser: User | null;
@@ -48,10 +49,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener("offline", syncBrowserState);
     window.addEventListener(FIRESTORE_SYNC_ERROR_EVENT, syncWriteError);
     syncBrowserState();
+    void requestPersistentAppStorage();
     if ("serviceWorker" in navigator) {
       if (process.env.NODE_ENV === "production") {
         navigator.serviceWorker.addEventListener("controllerchange", () => {
-          const reloadKey = "piyu-pos-sw-v6-reloaded";
+          const reloadKey = "piyu-pos-sw-v8-reloaded";
           if (sessionStorage.getItem(reloadKey)) return;
           sessionStorage.setItem(reloadKey, "1");
           window.location.reload();

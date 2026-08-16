@@ -8,7 +8,7 @@ Offline-first point-of-sale and order management for a Windows laptop and Androi
 - New-order form with optional email, WhatsApp mobile number, multiple items, percentage item discounts, delivery fees, totals, paid amount, balance, and COD amount
 - Request Date and Delivery Date on every order
 - Realtime orders and customers on all signed-in devices
-- Firestore persistent IndexedDB cache, offline writes, pending-sync indicators, and multi-tab support
+- Firestore persistent IndexedDB cache plus an app-owned IndexedDB snapshot mirror, offline writes, pending-sync indicators, and multi-tab support
 - Four clear order states: Pending, Delivered, Canceled, and Returned (older status values are mapped safely)
 - Append-only audit logs for order creation, editing, and status changes
 - Customer directory and order history based on immutable customer snapshots in orders
@@ -126,7 +126,7 @@ Configure the default size under **Settings**. Open an order and choose Delivery
 
 ## Firestore connection troubleshooting
 
-The app stores writes in Firestore's persistent browser cache first and synchronizes them automatically. **Waiting to sync** is safe while offline; do not clear the browser's site data before synchronization completes.
+The app stores writes in Firestore's persistent IndexedDB data first and synchronizes them automatically. It also keeps app-owned IndexedDB snapshots for faster local startup and receipt access. The app requests persistent-storage protection to reduce automatic eviction. **Waiting to sync** is safe while offline; do not clear the app/site data before synchronization completes.
 
 After changing Firebase initialization or `.env.local`, completely stop `npm run dev`, start it again, and hard-refresh the browser. If the app stays in Offline mode while other websites work, allow these HTTPS hosts through the device firewall, antivirus web shield, proxy, and DNS filter:
 
