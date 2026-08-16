@@ -3,14 +3,14 @@
 import { format } from "date-fns";
 import { calculateLineWeight, formatLKR, orderTotalWeight } from "@/lib/calculations";
 import type { BusinessSettings, Order } from "@/types";
-import { primaryOrderStatus } from "@/lib/order-status";
 
 export type ReceiptType = "customer" | "shipping" | "full";
 
 const hasText = (value?: string) => Boolean(value?.trim());
 const formatWeight = (weight: number) => `${weight.toLocaleString("en-LK", { maximumFractionDigits: 2 })} g`;
+const formatAmount = (value: number) => value.toLocaleString("en-LK", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-export function Receipt({ order, type, settings }: { order: Order; type: ReceiptType; settings: BusinessSettings }) {
+export function Receipt({ order, type, settings, printedAt }: { order: Order; type: ReceiptType; settings: BusinessSettings; printedAt?: string }) {
   const address = [order.customer.address1, order.customer.address2, order.customer.city, order.customer.district].filter(hasText).join(", ");
   const shippingAddress = [order.customer.address1, order.customer.address2, order.customer.city].filter(hasText).join(", ");
   const totalWeight = orderTotalWeight(order);
@@ -28,7 +28,7 @@ export function Receipt({ order, type, settings }: { order: Order; type: Receipt
       {hasText(settings.phone) && <span>{settings.phone}</span>}
     </header>}
 
-    {isItemList ? <ItemList order={order}/> : <>
+    {isItemList ? <ItemList order={order} printedAt={printedAt}/> : <>
       <div className="receipt-order-meta"><b>{order.orderCode}</b><span>{format(new Date(order.createdAtClient), "dd/MM/yyyy HH:mm")}</span></div>
       <FullBill order={order} address={address} totalWeight={totalWeight}/>
     </>}
@@ -48,47 +48,58 @@ function FullBill({ order, address, totalWeight }: { order: Order; address: stri
     </section>
 
     <table className="receipt-items">
-      <thead><tr><th>Item</th><th>Weight</th><th>Price</th></tr></thead>
-      <tbody>{order.items.map(item => {
+      <thead><tr><th>No.</th><th>Item</th><th>Weight</th><th>Price (LKR)</th></tr></thead>
+      <tbody>{order.items.map((item, index) => {
         const lineWeight = calculateLineWeight(item.weight, item.quantity);
         return <tr key={item.id}>
+          <td>{index + 1}</td>
           <td>{item.name}{hasText(item.variant) && ` (${item.variant})`} x {item.quantity}</td>
           <td>{lineWeight > 0 ? formatWeight(lineWeight) : ""}</td>
-          <td>{formatLKR(item.subtotal)}</td>
+          <td>{formatAmount(item.subtotal)}</td>
         </tr>;
       })}</tbody>
     </table>
-    {totalWeight > 0 && <div className="receipt-total-weight"><span>Total weight</span><b>{formatWeight(totalWeight)}</b></div>}
+    {totalWeight > 0 && <div className="receipt-total-weight"><span>Net weight</span><b>{formatWeight(totalWeight)}</b></div>}
 
     <div className="receipt-totals">
-      <span>Items subtotal</span><b>{formatLKR(order.itemsSubtotal)}</b>
-      {order.orderDiscount > 0 && <><span>Discount</span><b>-{formatLKR(order.orderDiscount)}</b></>}
-      {order.deliveryCharge > 0 && <><span>Delivery</span><b>{formatLKR(order.deliveryCharge)}</b></>}
-      <strong>Grand total</strong><strong>{formatLKR(order.grandTotal)}</strong>
-      {order.amountPaid > 0 && <><span>Paid</span><b>{formatLKR(order.amountPaid)}</b></>}
+      <span>Items subtotal</span><b>{formatAmount(order.itemsSubtotal)}</b>
+      {order.orderDiscount > 0 && <><span>Discount</span><b>-{formatAmount(order.orderDiscount)}</b></>}
+      {order.deliveryCharge > 0 && <><span>Delivery</span><b>{formatAmount(order.deliveryCharge)}</b></>}
+      <strong>Grand total</strong><strong>{formatAmount(order.grandTotal)}</strong>
+      {order.amountPaid > 0 && <><span>Paid</span><b>{formatAmount(order.amountPaid)}</b></>}
     </div>
 
     <section className="receipt-section receipt-extra">
-      {hasText(order.payment.method) && <span><b>Payment:</b> {order.payment.method}{hasText(order.paymentStatus) && ` - ${order.paymentStatus}`}</span>}
+      {hasText(order.payment.method) && <span><b>Payment:</b> {order.payment.method}</span>}
       {hasText(order.shipping.method) && <span><b>Shipping:</b> {order.shipping.method}{hasText(order.shipping.courier) && `, ${order.shipping.courier}`}</span>}
       {hasText(order.shipping.trackingNumber) && <span><b>Tracking:</b> {order.shipping.trackingNumber}</span>}
       {hasText(order.requestDate) && <span><b>Request date:</b> {order.requestDate}</span>}
       {hasText(order.deliveryDate) && <span><b>Delivery date:</b> {order.deliveryDate}</span>}
-      <span><b>Status:</b> {primaryOrderStatus(order.orderStatus)}</span>
       {hasText(order.shipping.note) && <span><b>Shipping note:</b> {order.shipping.note}</span>}
       {hasText(order.notes) && <span><b>Notes:</b> {order.notes}</span>}
     </section>
   </>;
 }
 
-function ItemList({ order }: { order: Order }) {
+function ItemList({ order, printedAt }: { order: Order; printedAt?: string }) {
+  const shortName = order.customer.name.trim().split(/\s+/).filter(Boolean).slice(0, 2).join(" ");
+  const shortAddress = [order.customer.address1, order.customer.address2, order.customer.city]
+    .filter(hasText)
+    .join(" ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .join(" ");
+  const addressLine = [shortAddress, order.customer.district].filter(hasText).join(", ");
+  const printTime = printedAt ? new Date(printedAt) : new Date(order.createdAtClient);
   return <>
-    <div className="item-list-meta"><b>{order.orderCode}</b><span>{order.customer.name}</span></div>
+    <div className="item-list-meta"><div className="item-list-client"><b>{order.orderCode}</b><strong>{shortName}</strong>{addressLine && <span>{addressLine}</span>}<time>Printed: {format(printTime, "dd/MM/yyyy HH:mm")}</time></div><div className="item-list-boxes"><span><b>Delivery Date :</b><i/></span><span><b>Weight :</b><i/></span></div></div>
     <table className="receipt-item-list">
-      <thead><tr><th>Item</th><th>Unit weight</th><th>Qty</th></tr></thead>
-      <tbody>{order.items.map(item => {
+      <thead><tr><th>No.</th><th>Item</th><th>Unit weight</th><th>Qty</th></tr></thead>
+      <tbody>{order.items.map((item, index) => {
         const unitWeight = Math.max(0, item.weight || 0);
-        return <tr key={item.id}><td>{item.name}</td><td>{unitWeight > 0 ? formatWeight(unitWeight) : ""}</td><td>{item.quantity}</td></tr>;
+        return <tr key={item.id}><td>{index + 1}</td><td>{item.name}</td><td>{unitWeight > 0 ? formatWeight(unitWeight) : ""}</td><td>{item.quantity}</td></tr>;
       })}</tbody>
     </table>
     <div className="item-list-total"><span>Total price</span><b>{formatLKR(order.grandTotal)}</b></div>
