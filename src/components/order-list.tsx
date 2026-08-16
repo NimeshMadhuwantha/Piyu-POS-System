@@ -55,8 +55,8 @@ export function OrderList({ orders, showWeight = false }: { orders: Order[]; sho
     setDeliveryOrder(order);
     setDeliveryForm({
       trackingNumber: order.deliveryConfirmation?.trackingNumber || order.shipping.trackingNumber || "",
-      parcelWeight: String(order.deliveryConfirmation?.parcelWeight || orderTotalWeight(order) || ""),
-      value: String(order.deliveryConfirmation?.value || order.balance || order.grandTotal || ""),
+      parcelWeight: "",
+      value: order.deliveryCharge > 0 ? String(order.deliveryCharge) : "",
       deliveryPaid: order.deliveryConfirmation?.deliveryPaid || false,
     });
   }
