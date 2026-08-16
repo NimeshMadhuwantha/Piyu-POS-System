@@ -31,6 +31,7 @@ export function OrderList({ orders, showWeight = false }: { orders: Order[]; sho
   const [printingOrderId, setPrintingOrderId] = useState<string | null>(null);
   const [printError, setPrintError] = useState("");
   const [selectedPrintOrder, setSelectedPrintOrder] = useState<Order | null>(null);
+  const [printedAt, setPrintedAt] = useState("");
   const [deliveryOrder, setDeliveryOrder] = useState<Order | null>(null);
   const [deliveryForm, setDeliveryForm] = useState({ trackingNumber: "", parcelWeight: "", value: "", deliveryPaid: false });
   const [deliveryError, setDeliveryError] = useState("");
@@ -42,6 +43,7 @@ export function OrderList({ orders, showWeight = false }: { orders: Order[]; sho
       setPrintError("");
       setSelectedPrintOrder(order);
       setPrintingOrderId(order.id);
+      setPrintedAt(new Date().toISOString());
     });
     await waitForPrintAssets();
     const error = openPrintDialog();
@@ -92,6 +94,6 @@ export function OrderList({ orders, showWeight = false }: { orders: Order[]; sho
     {printError && <p className="form-error no-print" role="alert">{printError}</p>}
     {deliveryError && !deliveryOrder && <p className="form-error no-print" role="alert">{deliveryError}</p>}
     {deliveryOrder && <div className="modal-backdrop no-print" role="presentation" onMouseDown={() => setDeliveryOrder(null)}><form className="card confirm-modal delivery-modal" onSubmit={confirmDelivery} onMouseDown={event => event.stopPropagation()}><button className="modal-close" type="button" aria-label="Close" onClick={() => setDeliveryOrder(null)}><X size={20}/></button><Truck size={36} color="#16a34a"/><h2>Send Invoice Delivered</h2><p className="muted">{deliveryOrder.orderCode} · {deliveryOrder.customer.name}</p><div className="delivery-form-fields"><label className="field">Tracking number *<input required value={deliveryForm.trackingNumber} onChange={event => setDeliveryForm(current => ({ ...current, trackingNumber: event.target.value }))}/></label><label className="field">Parcel weight (g) *<input required type="number" inputMode="decimal" min="0.01" step="0.01" value={deliveryForm.parcelWeight} onChange={event => setDeliveryForm(current => ({ ...current, parcelWeight: event.target.value }))}/></label><label className="field">Value (LKR) *<input required type="number" inputMode="decimal" min="0" step="0.01" value={deliveryForm.value} onChange={event => setDeliveryForm(current => ({ ...current, value: event.target.value }))}/></label><label className="delivery-paid-check"><input type="checkbox" checked={deliveryForm.deliveryPaid} onChange={event => setDeliveryForm(current => ({ ...current, deliveryPaid: event.target.checked }))}/><span>Deliver Paid</span></label></div>{deliveryError && <p className="form-error" role="alert">{deliveryError}</p>}<div className="settings-actions"><button className="btn secondary" type="button" onClick={() => setDeliveryOrder(null)}>Cancel</button><button className="btn whatsapp" type="submit">Confirm</button></div></form></div>}
-    <ReceiptPrintHost order={selectedPrintOrder} type="full" settings={settings}/>
+    <ReceiptPrintHost order={selectedPrintOrder} type="full" settings={settings} printedAt={printedAt}/>
   </>;
 }

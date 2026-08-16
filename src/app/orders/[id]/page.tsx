@@ -32,6 +32,7 @@ export default function OrderDetail() {
   const [selectedReceiptType, setSelectedReceiptType] = useState<ReceiptType>("full");
   const [printingMode, setPrintingMode] = useState<ReceiptType | null>(null);
   const [printError, setPrintError] = useState("");
+  const [printedAt, setPrintedAt] = useState("");
 
   const printReceipt = useCallback(async (receiptType: ReceiptType) => {
     setPrintTarget("receipt");
@@ -39,6 +40,7 @@ export default function OrderDetail() {
       setPrintError("");
       setSelectedReceiptType(receiptType);
       setPrintingMode(receiptType);
+      setPrintedAt(new Date().toISOString());
     });
     await waitForPrintAssets();
     const error = openPrintDialog();
@@ -94,6 +96,6 @@ export default function OrderDetail() {
       <div className="order-bottom-actions"><Link className="btn secondary" href={`/orders/${id}/edit`}><Edit3 size={17}/>Edit order</Link>{user?.role === "admin" && <button className="btn danger" onClick={() => setDeleteOpen(true)}><Trash2 size={17}/>Delete order</button>}</div>
     </div>
     {deleteOpen && <div className="modal-backdrop no-print" role="presentation" onMouseDown={() => setDeleteOpen(false)}><section className="card confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="delete-title" onMouseDown={event => event.stopPropagation()}><AlertTriangle size={38} color="#dc2626"/><h2 id="delete-title">Delete {order.orderCode}?</h2><p>This permanently removes the order from the order list and Firebase after synchronization. An audit log of the deletion will remain.</p><div style={{display:"flex",justifyContent:"flex-end",gap:8}}><button className="btn secondary" onClick={() => setDeleteOpen(false)}>Keep order</button><button className="btn danger" onClick={confirmDelete}>Yes, delete order</button></div></section></div>}
-    <ReceiptPrintHost order={displayedOrder} type={selectedReceiptType} settings={settings}/>
+    <ReceiptPrintHost order={displayedOrder} type={selectedReceiptType} settings={settings} printedAt={printedAt}/>
   </>;
 }
