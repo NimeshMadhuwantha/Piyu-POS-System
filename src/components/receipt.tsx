@@ -12,12 +12,13 @@ const formatWeight = (weight: number) => `${weight.toLocaleString("en-LK", { max
 
 export function Receipt({ order, type, settings }: { order: Order; type: ReceiptType; settings: BusinessSettings }) {
   const address = [order.customer.address1, order.customer.address2, order.customer.city, order.customer.district].filter(hasText).join(", ");
+  const shippingAddress = [order.customer.address1, order.customer.address2, order.customer.city].filter(hasText).join(", ");
   const totalWeight = orderTotalWeight(order);
   const paperClass = settings.receiptWidth === "A4/4" ? "A4-quarter" : settings.receiptWidth;
   const isItemList = type === "customer";
 
   if (type === "shipping") return <article className="receipt width-A4-quarter card receipt-shipping" style={{ fontSize: 12, color: "#000" }}>
-    <ShippingBill order={order} address={address} settings={settings}/>
+    <ShippingBill order={order} address={shippingAddress} settings={settings}/>
   </article>;
 
   return <article className={`receipt width-${paperClass} card receipt-${type}`} style={{ fontSize: 12, color: "#000" }}>
@@ -106,7 +107,7 @@ function ShippingBill({ order, address, settings }: { order: Order; address: str
         <div className="dispatch-order-id"><span>Order ID</span><strong>{order.orderCode}</strong></div>
         {delivery?.deliveryPaid && <div className="dispatch-paid-left"><b>Payment</b><strong>Deliver Paid</strong></div>}
       </section>
-      <div className="dispatch-right"><div className="dispatch-values"><span><b>Weight</b>{delivery ? `${delivery.parcelWeight.toLocaleString("en-LK", { maximumFractionDigits: 2 })} g` : "-"}</span><span><b>Value</b>{delivery ? formatLKR(delivery.value) : "-"}</span></div><section className="dispatch-recipient"><small>DELIVER TO</small><h2>{order.customer.name}</h2>{address && <p className="dispatch-address">{address}</p>}{mobileNumbers && <p><b>Mobile:</b> {mobileNumbers}</p>}{hasText(order.customer.email) && <p><b>Email:</b> {order.customer.email}</p>}{hasText(order.shipping.trackingNumber) && <p><b>Tracking:</b> {order.shipping.trackingNumber}</p>}{hasText(order.customer.note) && <p className="dispatch-note"><b>Client note:</b> {order.customer.note}</p>}{hasText(order.shipping.note) && <p className="dispatch-note"><b>Shipping note:</b> {order.shipping.note}</p>}</section></div>
+      <div className="dispatch-right"><div className="dispatch-values"><span><b>Weight</b>{delivery ? `${delivery.parcelWeight.toLocaleString("en-LK", { maximumFractionDigits: 2 })} g` : "-"}</span><span><b>Value</b>{delivery ? formatLKR(delivery.value) : "-"}</span></div><section className="dispatch-recipient"><small>DELIVER TO</small><h2>{order.customer.name}</h2>{address && <p className="dispatch-address">{address}</p>}{hasText(order.customer.district) && <p><b>District:</b> {order.customer.district}</p>}{mobileNumbers && <p><b>Mobile:</b> {mobileNumbers}</p>}{hasText(order.customer.email) && <p><b>Email:</b> {order.customer.email}</p>}{hasText(order.shipping.trackingNumber) && <p><b>Tracking:</b> {order.shipping.trackingNumber}</p>}{hasText(order.customer.note) && <p className="dispatch-note"><b>Client note:</b> {order.customer.note}</p>}{hasText(order.shipping.note) && <p className="dispatch-note"><b>Shipping note:</b> {order.shipping.note}</p>}</section></div>
     </div>
     {hasText(settings.footer) && <footer className="dispatch-footer">{settings.footer}</footer>}
   </div>;

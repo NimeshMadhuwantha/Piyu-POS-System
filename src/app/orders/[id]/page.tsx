@@ -13,7 +13,7 @@ import { StatusBadge } from "@/components/status-badge";
 import type { ReceiptType } from "@/components/receipt";
 import { ReceiptPrintHost } from "@/components/receipt-print-host";
 import { primaryOrderStatus, type PrimaryOrderStatus } from "@/lib/order-status";
-import { clearPrintTarget, openPrintDialog, setPrintTarget } from "@/lib/printing";
+import { clearPrintTarget, openPrintDialog, setPrintTarget, waitForPrintAssets } from "@/lib/printing";
 import type { BusinessSettings } from "@/types";
 
 const statuses: PrimaryOrderStatus[] = ["Pending", "Delivered", "Canceled", "Returned"];
@@ -33,13 +33,14 @@ export default function OrderDetail() {
   const [printingMode, setPrintingMode] = useState<ReceiptType | null>(null);
   const [printError, setPrintError] = useState("");
 
-  const printReceipt = useCallback((receiptType: ReceiptType) => {
+  const printReceipt = useCallback(async (receiptType: ReceiptType) => {
     setPrintTarget("receipt");
     flushSync(() => {
       setPrintError("");
       setSelectedReceiptType(receiptType);
       setPrintingMode(receiptType);
     });
+    await waitForPrintAssets();
     const error = openPrintDialog();
     setPrintingMode(null);
     if (error) {

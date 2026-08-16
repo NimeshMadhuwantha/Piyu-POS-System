@@ -10,7 +10,7 @@ import { openWhatsAppDeliveredInvoice } from "@/lib/whatsapp";
 import { StatusBadge } from "./status-badge";
 import { ReceiptPrintHost } from "./receipt-print-host";
 import { confirmOrderDelivery, getBusinessSettings } from "@/lib/repositories";
-import { clearPrintTarget, openPrintDialog, setPrintTarget } from "@/lib/printing";
+import { clearPrintTarget, openPrintDialog, setPrintTarget, waitForPrintAssets } from "@/lib/printing";
 import type { BusinessSettings, Order } from "@/types";
 import { RECORD_PAGE_SIZE, ViewMore } from "./view-more";
 import { useApp } from "./providers";
@@ -36,13 +36,14 @@ export function OrderList({ orders, showWeight = false }: { orders: Order[]; sho
   const [deliveryError, setDeliveryError] = useState("");
   useEffect(() => { getBusinessSettings().then(setSettings).catch(() => undefined); }, []);
   useEffect(() => () => clearPrintTarget("receipt"), []);
-  const printOrder = useCallback((order: Order) => {
+  const printOrder = useCallback(async (order: Order) => {
     setPrintTarget("receipt");
     flushSync(() => {
       setPrintError("");
       setSelectedPrintOrder(order);
       setPrintingOrderId(order.id);
     });
+    await waitForPrintAssets();
     const error = openPrintDialog();
     setPrintingOrderId(null);
     if (error) {
