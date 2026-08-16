@@ -5,7 +5,7 @@ Offline-first point-of-sale and order management for a Windows laptop and Androi
 ## Features
 
 - Email/password admin login with `/users/{uid}` authorization and no public signup
-- New-order form with structured, editable Order IDs, required primary mobile, optional WhatsApp number, multiple items, percentage item discounts, delivery fees, totals, paid amount, balance, and COD amount
+- New-order form with structured editable Order IDs, required primary mobile, optional WhatsApp number, payment-first shipping selection, manual non-COD shipping costs, totals, paid amount, balance, and COD amount
 - Request Date and Delivery Date on every order
 - Realtime orders and customers on all signed-in devices
 - Firestore persistent IndexedDB cache plus an app-owned IndexedDB snapshot mirror, offline writes, pending-sync indicators, and multi-tab support

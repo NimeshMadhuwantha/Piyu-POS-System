@@ -3,6 +3,10 @@ import type { OrderItem, PaymentMethod, ShippingDetails } from "@/types";
 const safe = (value: number) => Number.isFinite(value) ? Math.max(0, value) : 0;
 const money = (value: number) => Math.round(safe(value) * 100) / 100;
 
+export function effectiveShippingCharge(paymentMethod: PaymentMethod | undefined, shippingCharge: number) {
+  return paymentMethod === "Cash on Delivery (COD)" ? 0 : money(shippingCharge);
+}
+
 export function calculateLineSubtotal(quantity: number, unitPrice: number, discountPercent = 0) {
   const gross = safe(quantity) * safe(unitPrice);
   const percentage = Math.min(100, safe(discountPercent));
