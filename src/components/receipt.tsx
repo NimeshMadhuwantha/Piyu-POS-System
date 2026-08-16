@@ -1,5 +1,6 @@
+/* The print-only logo must load eagerly while its host is hidden. */
+/* eslint-disable @next/next/no-img-element */
 import { format } from "date-fns";
-import Image from "next/image";
 import { calculateLineWeight, formatLKR, orderTotalWeight } from "@/lib/calculations";
 import type { BusinessSettings, Order } from "@/types";
 import { primaryOrderStatus } from "@/lib/order-status";
@@ -15,7 +16,7 @@ export function Receipt({ order, type, settings }: { order: Order; type: Receipt
   const paperClass = settings.receiptWidth === "A4/4" ? "A4-quarter" : settings.receiptWidth;
   const isItemList = type === "customer";
 
-  if (type === "shipping") return <article className={`receipt width-${paperClass} card receipt-shipping`} style={{ fontSize: 12, color: "#000" }}>
+  if (type === "shipping") return <article className="receipt width-A4-quarter card receipt-shipping" style={{ fontSize: 12, color: "#000" }}>
     <ShippingBill order={order} address={address} settings={settings}/>
   </article>;
 
@@ -101,10 +102,11 @@ function ShippingBill({ order, address, settings }: { order: Order; address: str
     <section className="dispatch-notice"><h1>පිසූ ආහාර පාර්සලයකි</h1><p>විදෙස්ගතවන අයෙකුට ලැබිය යුතු පාර්සලයක් බැවින් <b>{deliveryDate}</b> දින හෝ ඉන් පෙර අනිවාර්යයෙන් බාර දෙන්න.</p></section>
     <div className="dispatch-columns">
       <section className="dispatch-sender">
-        <div className="dispatch-brand"><Image src="/icons/piyu%20logo.png" alt="Piyu Product logo" width={150} height={124} unoptimized/><div><h2>{settings.businessName || "Piyu Product"}</h2>{hasText(settings.address) && <p>{settings.address}</p>}{hasText(settings.phone) && <p>{settings.phone}</p>}</div></div>
+        <div className="dispatch-brand"><img src="/icons/piyu%20logo.png" alt="Piyu Product logo" width="150" height="124" loading="eager" decoding="sync"/><div><h2>{settings.businessName || "Piyu Product"}</h2>{hasText(settings.address) && <p>{settings.address}</p>}{hasText(settings.phone) && <p>{settings.phone}</p>}</div></div>
         <div className="dispatch-order-id"><span>Order ID</span><strong>{order.orderCode}</strong></div>
+        {delivery?.deliveryPaid && <div className="dispatch-paid-left"><b>Payment</b><strong>Deliver Paid</strong></div>}
       </section>
-      <div className="dispatch-right"><div className="dispatch-values"><span><b>Weight</b>{delivery ? `${delivery.parcelWeight.toLocaleString("en-LK", { maximumFractionDigits: 2 })} g` : "-"}</span><span><b>Value</b>{delivery ? formatLKR(delivery.value) : "-"}</span>{delivery?.deliveryPaid && <span className="dispatch-paid"><b>Payment</b>Deliver Paid</span>}</div><section className="dispatch-recipient"><small>DELIVER TO</small><h2>{order.customer.name}</h2>{address && <p className="dispatch-address">{address}</p>}{mobileNumbers && <p><b>Mobile:</b> {mobileNumbers}</p>}{hasText(order.customer.email) && <p><b>Email:</b> {order.customer.email}</p>}{hasText(order.shipping.trackingNumber) && <p><b>Tracking:</b> {order.shipping.trackingNumber}</p>}{hasText(order.customer.note) && <p className="dispatch-note"><b>Client note:</b> {order.customer.note}</p>}{hasText(order.shipping.note) && <p className="dispatch-note"><b>Shipping note:</b> {order.shipping.note}</p>}</section></div>
+      <div className="dispatch-right"><div className="dispatch-values"><span><b>Weight</b>{delivery ? `${delivery.parcelWeight.toLocaleString("en-LK", { maximumFractionDigits: 2 })} g` : "-"}</span><span><b>Value</b>{delivery ? formatLKR(delivery.value) : "-"}</span></div><section className="dispatch-recipient"><small>DELIVER TO</small><h2>{order.customer.name}</h2>{address && <p className="dispatch-address">{address}</p>}{mobileNumbers && <p><b>Mobile:</b> {mobileNumbers}</p>}{hasText(order.customer.email) && <p><b>Email:</b> {order.customer.email}</p>}{hasText(order.shipping.trackingNumber) && <p><b>Tracking:</b> {order.shipping.trackingNumber}</p>}{hasText(order.customer.note) && <p className="dispatch-note"><b>Client note:</b> {order.customer.note}</p>}{hasText(order.shipping.note) && <p className="dispatch-note"><b>Shipping note:</b> {order.shipping.note}</p>}</section></div>
     </div>
     {hasText(settings.footer) && <footer className="dispatch-footer">{settings.footer}</footer>}
   </div>;
