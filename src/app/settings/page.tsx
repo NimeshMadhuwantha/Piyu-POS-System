@@ -77,7 +77,7 @@ export default function Settings() {
         <label className="field">Business name<input required value={settings.businessName} onChange={event => setSettings({ ...settings, businessName: event.target.value })}/></label>
         <label className="field">Phone<input inputMode="tel" value={settings.phone} onChange={event => setSettings({ ...settings, phone: event.target.value })}/></label>
         <label className="field">Address<textarea value={settings.address} onChange={event => setSettings({ ...settings, address: event.target.value })}/></label>
-        <label className="field">Default paper size<select value={settings.receiptWidth} onChange={event => setSettings({ ...settings, receiptWidth: event.target.value as BusinessSettings["receiptWidth"] })}><option>58mm</option><option>80mm</option><option>A4/4</option><option>A4</option></select></label>
+        <label className="field">Default paper size<select value={settings.receiptWidth} onChange={event => setSettings({ ...settings, receiptWidth: event.target.value as BusinessSettings["receiptWidth"] })}><option>58mm</option><option>80mm</option><option value="A4/4">A4/4 (105 × 148.5 mm)</option><option>A4</option></select></label>
         <label className="field">Receipt footer<input value={settings.footer} onChange={event => setSettings({ ...settings, footer: event.target.value })}/></label>
       </div>
       <button className="btn" type="submit" style={{ marginTop: 14 }}><Save size={17}/>{saved ? "Saved locally" : "Save settings"}</button>

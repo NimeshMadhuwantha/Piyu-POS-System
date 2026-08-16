@@ -3,6 +3,7 @@
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { AlertTriangle, Edit3, Printer, Trash2 } from "lucide-react";
 import { updateCachedOrderStatus, useOrders } from "@/hooks/use-data";
 import { useApp } from "@/components/providers";
@@ -30,35 +31,49 @@ export default function OrderDetail() {
   const autoPrinted = useRef(false);
   const [settings, setSettings] = useState<BusinessSettings>({ businessName: "Piyu POS", phone: "", address: "", receiptWidth: "80mm", footer: "Thank you!" });
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [printingMode, setPrintingMode] = useState<ReceiptType | null>(null);
+  const [printError, setPrintError] = useState("");
 
   const printReceipt = useCallback((receiptType: ReceiptType) => {
+    const startedAt = performance.now();
     const options = Array.from(printArea.current?.querySelectorAll<HTMLElement>(".receipt-print-option") || []);
     const selected = options.find(option => option.dataset.receiptType === receiptType);
     if (!selected) return;
     options.forEach(option => option.classList.toggle("active-print-receipt", option === selected));
-    document.body.classList.add("preparing-receipt-print");
+    flushSync(() => {
+      setPrintError("");
+      setPrintingMode(receiptType);
+    });
 
-    const margin = settings.receiptWidth === "A4" ? 10 : 5;
-    let pageSize = settings.receiptWidth === "A4" ? "A4 portrait" : settings.receiptWidth === "A4/4" ? "105mm 148.5mm" : "80mm 200mm";
-    if (settings.receiptWidth === "58mm" || settings.receiptWidth === "80mm") {
-      const contentHeight = selected.querySelector<HTMLElement>(".receipt")?.getBoundingClientRect().height || 0;
-      const pageHeight = Math.max(80, Math.ceil(contentHeight * 25.4 / 96 + margin * 2 + 1));
-      pageSize = `${settings.receiptWidth} ${pageHeight}mm`;
+    const debugPrint = process.env.NODE_ENV !== "production";
+    const log = (step: string) => {
+      if (debugPrint) console.info(`[PRINT] ${step}: ${Math.round(performance.now() - startedAt)}ms`);
+    };
+    const beforePrint = () => log("beforeprint");
+    const cleanUpPrint = () => {
+      window.removeEventListener("beforeprint", beforePrint);
+      options.forEach(option => option.classList.remove("active-print-receipt"));
+      setPrintingMode(null);
+    };
+    const finishPrint = () => {
+      log("afterprint");
+      cleanUpPrint();
+    };
+    window.addEventListener("beforeprint", beforePrint, { once: true });
+    window.addEventListener("afterprint", finishPrint, { once: true });
+    log("receipt ready");
+    log("window.print called");
+    try {
+      window.print();
+    } catch (error) {
+      window.removeEventListener("afterprint", finishPrint);
+      cleanUpPrint();
+      const blockedByExtension = error instanceof Error && error.message.includes("Browser Locker");
+      setPrintError(blockedByExtension
+        ? "A browser extension blocked printing. Disable Browser Locker for this site, then try again."
+        : "The browser could not open the print screen. Check browser permissions and try again.");
     }
-
-    document.body.classList.remove("preparing-receipt-print");
-    document.getElementById("receipt-print-page-size")?.remove();
-    const pageStyle = document.createElement("style");
-    pageStyle.id = "receipt-print-page-size";
-    pageStyle.media = "print";
-    pageStyle.textContent = `@page { size: ${pageSize}; margin: ${margin}mm; }`;
-    document.head.appendChild(pageStyle);
-    window.addEventListener("afterprint", () => {
-      pageStyle.remove();
-      selected.classList.remove("active-print-receipt");
-    }, { once: true });
-    window.print();
-  }, [settings.receiptWidth]);
+  }, []);
 
   useEffect(() => { getBusinessSettings().then(setSettings).catch(() => undefined).finally(() => setSettingsLoaded(true)); }, []);
   useEffect(() => {
@@ -98,7 +113,8 @@ export default function OrderDetail() {
 
   return <>
     <div className="no-print">
-      <div className="page-head"><div><h1>{order.orderCode}</h1><span className="muted">{order.pending ? "Saved locally - waiting to sync" : "Synced"}</span></div><div className="order-top-print"><button className="btn secondary" type="button" onClick={() => printReceipt("full")}><Printer size={17}/>Full bill</button><button className="btn secondary" type="button" onClick={() => printReceipt("shipping")}><Printer size={17}/>Shipping details</button><button className="btn secondary" type="button" onClick={() => printReceipt("customer")}><Printer size={17}/>Item list</button></div></div>
+      <div className="page-head"><div><h1>{order.orderCode}</h1><span className="muted">{order.pending ? "Saved locally - waiting to sync" : "Synced"}</span></div><div className="order-top-print"><button className="btn secondary" type="button" disabled={printingMode !== null} aria-busy={printingMode === "full"} onClick={() => printReceipt("full")}>{printingMode === "full" ? <>Creating<span className="print-loading-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></> : <><Printer size={17}/>Full bill</>}</button><button className="btn secondary" type="button" disabled={printingMode !== null} aria-busy={printingMode === "shipping"} onClick={() => printReceipt("shipping")}>{printingMode === "shipping" ? <>Creating<span className="print-loading-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></> : <><Printer size={17}/>Shipping details</>}</button><button className="btn secondary" type="button" disabled={printingMode !== null} aria-busy={printingMode === "customer"} onClick={() => printReceipt("customer")}>{printingMode === "customer" ? <>Creating<span className="print-loading-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></> : <><Printer size={17}/>Item list</>}</button></div></div>
+      {printError && <p className="form-error" role="alert">{printError}</p>}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14}}>
         <section className="card"><h2 className="section-title">Customer details</h2><b>{order.customer.name}</b>{order.customer.email && <p>{order.customer.email}</p>}<p>{order.customer.mobile1}{order.customer.mobile2 && ` / ${order.customer.mobile2}`}</p><p>{[order.customer.address1,order.customer.address2,order.customer.city,order.customer.district].filter(Boolean).join(", ")}</p>{order.customer.note && <p className="muted">{order.customer.note}</p>}</section>
         <section className="card"><h2 className="section-title">Delivery details</h2><p><b>{order.shipping.method}</b></p><p>Courier: {order.shipping.courier || "-"}<br/>Tracking: {order.shipping.trackingNumber || "-"}<br/>Total weight: {totalWeight > 0 ? `${totalWeight.toLocaleString("en-LK", { maximumFractionDigits: 2 })} g` : "-"}</p><p>Requested: {order.requestDate}<br/>Delivery: {order.deliveryDate || "Not set"}</p></section>
@@ -109,6 +125,6 @@ export default function OrderDetail() {
       <div className="order-bottom-actions"><Link className="btn secondary" href={`/orders/${id}/edit`}><Edit3 size={17}/>Edit order</Link>{user?.role === "admin" && <button className="btn danger" onClick={() => setDeleteOpen(true)}><Trash2 size={17}/>Delete order</button>}</div>
     </div>
     {deleteOpen && <div className="modal-backdrop no-print" role="presentation" onMouseDown={() => setDeleteOpen(false)}><section className="card confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="delete-title" onMouseDown={event => event.stopPropagation()}><AlertTriangle size={38} color="#dc2626"/><h2 id="delete-title">Delete {order.orderCode}?</h2><p>This permanently removes the order from the order list and Firebase after synchronization. An audit log of the deletion will remain.</p><div style={{display:"flex",justifyContent:"flex-end",gap:8}}><button className="btn secondary" onClick={() => setDeleteOpen(false)}>Keep order</button><button className="btn danger" onClick={confirmDelete}>Yes, delete order</button></div></section></div>}
-    <div className="print-only" ref={printArea}><div className="receipt-print-option" data-receipt-type="full"><Receipt order={displayedOrder} type="full" settings={settings}/></div><div className="receipt-print-option" data-receipt-type="shipping"><Receipt order={displayedOrder} type="shipping" settings={settings}/></div><div className="receipt-print-option" data-receipt-type="customer"><Receipt order={displayedOrder} type="customer" settings={settings}/></div></div>
+    <div className="print-only" ref={printArea}><div className="receipt-print-option" data-receipt-type="shipping"><Receipt order={displayedOrder} type="shipping" settings={settings}/></div><div className="receipt-print-option" data-receipt-type="customer"><Receipt order={displayedOrder} type="customer" settings={settings}/></div><div className="receipt-print-option" data-receipt-type="full"><Receipt order={displayedOrder} type="full" settings={settings}/></div></div>
   </>;
 }
