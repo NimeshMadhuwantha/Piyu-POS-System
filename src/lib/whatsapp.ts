@@ -1,6 +1,7 @@
-import { calculateLineWeight, formatLKR, orderTotalWeight } from "@/lib/calculations";
-import { primaryOrderStatus } from "@/lib/order-status";
-import type { Order } from "@/types";
+import { calculateLineWeight, formatLKR, orderTotalWeight } from "./calculations";
+import { primaryOrderStatus } from "./order-status";
+import { format } from "date-fns";
+import type { DeliveryConfirmation, Order } from "../types";
 
 function whatsappNumber(value: string) {
   const digits = value.replace(/\D/g, "");
@@ -39,5 +40,35 @@ export function invoiceMessage(order: Order) {
 export function openWhatsAppInvoice(order: Order) {
   const number = whatsappNumber(order.customer.mobile2 || order.customer.mobile1);
   const url = `https://wa.me/${number}?text=${encodeURIComponent(invoiceMessage(order))}`;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+export function deliveredInvoiceMessage(order: Order, delivery: DeliveryConfirmation) {
+  const date = format(new Date(delivery.confirmedAtClient), "dd/MM/yyyy");
+  const mobiles = [order.customer.mobile1, order.customer.mobile2].filter(Boolean).join(" / ");
+  const items = order.items.map((item, index) => `${index + 1}. ${item.name}${item.variant ? ` (${item.variant})` : ""} x ${item.quantity}`).join("\n");
+  return [
+    "ආයුබෝවන්...",
+    "",
+    `ඔබගේ ඇනවුම (${date}) Deliver 🚛 සඳහා භාරදෙන ලදී.`,
+    `රැගෙන ඒමට පෙර ඔබ ලබා දුන් දුරකථන අංකයට (${mobiles}) ඔවුන් අමතන 📲 බැවින් ඒ පිළිබඳව අවධානයෙන් කටයුතු කරන මෙන් දැනුවත් කරමු.`,
+    "",
+    "Item list",
+    items,
+    "",
+    `Tracking number: ${delivery.trackingNumber}`,
+    `Weight: ${delivery.parcelWeight.toLocaleString("en-LK", { maximumFractionDigits: 2 })} g`,
+    `Value: ${formatLKR(delivery.value)}`,
+    delivery.deliveryPaid ? "Deliver Paid" : "",
+    "",
+    "Piyu Product අප ආයතනය හා සම්බන්ධ වූවාට ස්තූතී🙏🙏🙏",
+    "",
+    "🔸🔸🔸🔸🔸🔸🔸🔸🔸🔸🔸",
+  ].filter((line, index, values) => line !== "" || values[index - 1] !== "").join("\n");
+}
+
+export function openWhatsAppDeliveredInvoice(order: Order, delivery: DeliveryConfirmation) {
+  const number = whatsappNumber(order.customer.mobile2 || order.customer.mobile1);
+  const url = `https://wa.me/${number}?text=${encodeURIComponent(deliveredInvoiceMessage(order, delivery))}`;
   window.open(url, "_blank", "noopener,noreferrer");
 }

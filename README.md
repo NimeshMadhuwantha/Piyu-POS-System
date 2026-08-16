@@ -14,7 +14,8 @@ Offline-first point-of-sale and order management for a Windows laptop and Androi
 - Customer directory and order history based on immutable customer snapshots in orders
 - Dashboard, search/filterable orders, logs, reports, settings, CSV/JSON export, and client-side PDF report
 - Customer details with priced items, delivery details, and full bill formats for 58 mm, 80 mm, or A4 printing
-- WhatsApp invoice messages prefilled with the complete bill and customer/order details
+- Delivery-confirmation popup with Firebase status/audit updates and a prefilled Sinhala WhatsApp delivered message
+- Landscape Shipping details label with the Piyu logo, configured business header/footer, delivery values, and recipient details
 - Administrator-only order deletion with a warning confirmation and retained audit log
 - Installable responsive PWA with an application-shell service worker
 

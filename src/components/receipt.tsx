@@ -1,3 +1,5 @@
+/* The print-only logo must load eagerly while its host is hidden. */
+/* eslint-disable @next/next/no-img-element */
 import { format } from "date-fns";
 import { calculateLineWeight, formatLKR, orderTotalWeight } from "@/lib/calculations";
 import type { BusinessSettings, Order } from "@/types";
@@ -10,10 +12,14 @@ const formatWeight = (weight: number) => `${weight.toLocaleString("en-LK", { max
 
 export function Receipt({ order, type, settings }: { order: Order; type: ReceiptType; settings: BusinessSettings }) {
   const address = [order.customer.address1, order.customer.address2, order.customer.city, order.customer.district].filter(hasText).join(", ");
-  const totalQuantity = order.items.reduce((sum, item) => sum + Math.max(0, item.quantity || 0), 0);
+  const shippingAddress = [order.customer.address1, order.customer.address2, order.customer.city].filter(hasText).join(", ");
   const totalWeight = orderTotalWeight(order);
   const paperClass = settings.receiptWidth === "A4/4" ? "A4-quarter" : settings.receiptWidth;
   const isItemList = type === "customer";
+
+  if (type === "shipping") return <article className="receipt width-A4-quarter card receipt-shipping" style={{ fontSize: 12, color: "#000" }}>
+    <ShippingBill order={order} address={shippingAddress} settings={settings}/>
+  </article>;
 
   return <article className={`receipt width-${paperClass} card receipt-${type}`} style={{ fontSize: 12, color: "#000" }}>
     {!isItemList && <header className="receipt-header">
@@ -24,7 +30,7 @@ export function Receipt({ order, type, settings }: { order: Order; type: Receipt
 
     {isItemList ? <ItemList order={order}/> : <>
       <div className="receipt-order-meta"><b>{order.orderCode}</b><span>{format(new Date(order.createdAtClient), "dd/MM/yyyy HH:mm")}</span></div>
-      {type === "shipping" ? <ShippingBill order={order} address={address} totalQuantity={totalQuantity} totalWeight={totalWeight}/> : <FullBill order={order} address={address} totalWeight={totalWeight}/>}
+      <FullBill order={order} address={address} totalWeight={totalWeight}/>
     </>}
 
     {!isItemList && hasText(settings.footer) && <footer className="receipt-footer">{settings.footer}</footer>}
@@ -89,25 +95,20 @@ function ItemList({ order }: { order: Order }) {
   </>;
 }
 
-function ShippingBill({ order, address, totalQuantity, totalWeight }: { order: Order; address: string; totalQuantity: number; totalWeight: number }) {
-  return <>
-    <section className="receipt-section shipping-recipient">
-      <b>{order.customer.name}</b>
-      {address && <span>{address}</span>}
-      {hasText(order.customer.mobile1) && <span><b>Contact:</b> {order.customer.mobile1}{hasText(order.customer.mobile2) && ` / ${order.customer.mobile2}`}</span>}
-      {hasText(order.customer.email) && <span>{order.customer.email}</span>}
-    </section>
-    <div className="shipping-bill-summary">
-      {hasText(order.shipping.method) && <><span>Shipping option</span><b>{order.shipping.method}</b></>}
-      {hasText(order.shipping.courier) && <><span>Courier / company</span><b>{order.shipping.courier}</b></>}
-      {hasText(order.shipping.trackingNumber) && <><span>Tracking</span><b>{order.shipping.trackingNumber}</b></>}
-      <span>Total items</span><b>{totalQuantity}</b>
-      {totalWeight > 0 && <><span>Total weight</span><b>{formatWeight(totalWeight)}</b></>}
-      {order.deliveryCharge > 0 && <><span>Shipping charge</span><b>{formatLKR(order.deliveryCharge)}</b></>}
-      <strong>Total price</strong><strong>{formatLKR(order.grandTotal)}</strong>
-      {hasText(order.requestDate) && <><span>Request date</span><b>{order.requestDate}</b></>}
-      {hasText(order.deliveryDate) && <><span>Delivery date</span><b>{order.deliveryDate}</b></>}
+function ShippingBill({ order, address, settings }: { order: Order; address: string; settings: BusinessSettings }) {
+  const delivery = order.deliveryConfirmation;
+  const deliveryDate = order.deliveryDate || ".......................";
+  const mobileNumbers = [order.customer.mobile1, order.customer.mobile2].filter(hasText).join(" / ");
+  return <div className="dispatch-label">
+    <section className="dispatch-notice"><h1>පිසූ ආහාර පාර්සලයකි</h1><p>විදෙස්ගතවන අයෙකුට ලැබිය යුතු පාර්සලයක් බැවින් <b>{deliveryDate}</b> දින හෝ ඉන් පෙර අනිවාර්යයෙන් බාර දෙන්න.</p></section>
+    <div className="dispatch-columns">
+      <section className="dispatch-sender">
+        <div className="dispatch-brand"><img src="/icons/piyu%20logo.png" alt="Piyu Product logo" width="150" height="124" loading="eager" decoding="sync"/><div><h2>{settings.businessName || "Piyu Product"}</h2>{hasText(settings.address) && <p>{settings.address}</p>}{hasText(settings.phone) && <p>{settings.phone}</p>}</div></div>
+        <div className="dispatch-order-id"><span>Order ID</span><strong>{order.orderCode}</strong></div>
+        {delivery?.deliveryPaid && <div className="dispatch-paid-left"><b>Payment</b><strong>Deliver Paid</strong></div>}
+      </section>
+      <div className="dispatch-right"><div className="dispatch-values"><span><b>Weight</b>{delivery ? `${delivery.parcelWeight.toLocaleString("en-LK", { maximumFractionDigits: 2 })} g` : "-"}</span><span><b>Value</b>{delivery ? formatLKR(delivery.value) : "-"}</span></div><section className="dispatch-recipient"><small>DELIVER TO</small><h2>{order.customer.name}</h2>{address && <p className="dispatch-address">{address}</p>}{hasText(order.customer.district) && <p><b>District:</b> {order.customer.district}</p>}{mobileNumbers && <p><b>Mobile:</b> {mobileNumbers}</p>}{hasText(order.customer.email) && <p><b>Email:</b> {order.customer.email}</p>}{hasText(order.shipping.trackingNumber) && <p><b>Tracking:</b> {order.shipping.trackingNumber}</p>}{hasText(order.customer.note) && <p className="dispatch-note"><b>Client note:</b> {order.customer.note}</p>}{hasText(order.shipping.note) && <p className="dispatch-note"><b>Shipping note:</b> {order.shipping.note}</p>}</section></div>
     </div>
-    {hasText(order.shipping.note) && <section className="receipt-section receipt-note"><b>Shipping note:</b> {order.shipping.note}</section>}
-  </>;
+    {hasText(settings.footer) && <footer className="dispatch-footer">{settings.footer}</footer>}
+  </div>;
 }

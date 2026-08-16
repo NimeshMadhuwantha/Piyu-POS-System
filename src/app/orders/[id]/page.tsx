@@ -13,7 +13,7 @@ import { StatusBadge } from "@/components/status-badge";
 import type { ReceiptType } from "@/components/receipt";
 import { ReceiptPrintHost } from "@/components/receipt-print-host";
 import { primaryOrderStatus, type PrimaryOrderStatus } from "@/lib/order-status";
-import { clearPrintTarget, openPrintDialog, setPrintTarget } from "@/lib/printing";
+import { clearPrintTarget, openPrintDialog, setPrintTarget, waitForPrintAssets } from "@/lib/printing";
 import type { BusinessSettings } from "@/types";
 
 const statuses: PrimaryOrderStatus[] = ["Pending", "Delivered", "Canceled", "Returned"];
@@ -33,13 +33,14 @@ export default function OrderDetail() {
   const [printingMode, setPrintingMode] = useState<ReceiptType | null>(null);
   const [printError, setPrintError] = useState("");
 
-  const printReceipt = useCallback((receiptType: ReceiptType) => {
+  const printReceipt = useCallback(async (receiptType: ReceiptType) => {
     setPrintTarget("receipt");
     flushSync(() => {
       setPrintError("");
       setSelectedReceiptType(receiptType);
       setPrintingMode(receiptType);
     });
+    await waitForPrintAssets();
     const error = openPrintDialog();
     setPrintingMode(null);
     if (error) {
@@ -89,6 +90,7 @@ export default function OrderDetail() {
       </div>
       <section className="card" style={{marginTop:14}}><h2 className="section-title">Order items</h2><div className="table-wrap"><table className="table"><thead><tr><th>Item</th><th>Variant</th><th>Qty</th><th>Unit</th><th>Unit weight</th><th>Total weight</th><th>Unit price</th><th>Discount</th><th>Total</th></tr></thead><tbody>{order.items.map(item => { const unitWeight = Math.max(0, item.weight || 0); const lineWeight = calculateLineWeight(unitWeight, item.quantity); return <tr key={item.id}><td>{item.name}</td><td>{item.variant || "-"}</td><td>{item.quantity}</td><td>{item.unit || "-"}</td><td>{unitWeight > 0 ? `${unitWeight.toLocaleString("en-LK", { maximumFractionDigits: 2 })} g` : "-"}</td><td>{lineWeight > 0 ? `${lineWeight.toLocaleString("en-LK", { maximumFractionDigits: 2 })} g` : "-"}</td><td>{formatLKR(item.unitPrice)}</td><td>{order.schemaVersion >= 2 ? `${item.discount}%` : formatLKR(item.discount)}</td><td><b>{formatLKR(item.subtotal)}</b></td></tr>; })}</tbody></table></div><div className="total-weight">Total order weight <b>{totalWeight.toLocaleString("en-LK", { maximumFractionDigits: 2 })} g</b></div></section>
       <section className="card status-panel" style={{marginTop:14}}><div><h2 className="section-title">Update order status</h2><p className="muted">Current status: <b>{currentStatus}</b></p>{statusError && <p className="form-error" role="alert">{statusError}</p>}</div><div className="status-actions">{statuses.map(status => { const current = currentStatus === status; return <button disabled={current} aria-pressed={current} className={`btn status-${status} ${current ? "status-current" : ""}`} key={status} onClick={() => changeStatus(status)}>Mark {status}</button>; })}</div></section>
+      {order.deliveryConfirmation && <section className="card delivery-confirmation-card"><h3>Delivery confirmation</h3><div><span><b>Tracking number:</b> {order.deliveryConfirmation.trackingNumber}</span><span><b>Parcel weight:</b> {order.deliveryConfirmation.parcelWeight.toLocaleString("en-LK", { maximumFractionDigits: 2 })} g</span><span><b>Value:</b> {formatLKR(order.deliveryConfirmation.value)}</span>{order.deliveryConfirmation.deliveryPaid && <span className="delivery-paid-label">✓ Deliver Paid</span>}</div></section>}
       <div className="order-bottom-actions"><Link className="btn secondary" href={`/orders/${id}/edit`}><Edit3 size={17}/>Edit order</Link>{user?.role === "admin" && <button className="btn danger" onClick={() => setDeleteOpen(true)}><Trash2 size={17}/>Delete order</button>}</div>
     </div>
     {deleteOpen && <div className="modal-backdrop no-print" role="presentation" onMouseDown={() => setDeleteOpen(false)}><section className="card confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="delete-title" onMouseDown={event => event.stopPropagation()}><AlertTriangle size={38} color="#dc2626"/><h2 id="delete-title">Delete {order.orderCode}?</h2><p>This permanently removes the order from the order list and Firebase after synchronization. An audit log of the deletion will remain.</p><div style={{display:"flex",justifyContent:"flex-end",gap:8}}><button className="btn secondary" onClick={() => setDeleteOpen(false)}>Keep order</button><button className="btn danger" onClick={confirmDelete}>Yes, delete order</button></div></section></div>}
