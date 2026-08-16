@@ -37,7 +37,7 @@ export function invoiceMessage(order: Order) {
 }
 
 export function openWhatsAppInvoice(order: Order) {
-  const number = whatsappNumber(order.customer.mobile1);
+  const number = whatsappNumber(order.customer.mobile2 || order.customer.mobile1);
   const url = `https://wa.me/${number}?text=${encodeURIComponent(invoiceMessage(order))}`;
   window.open(url, "_blank", "noopener,noreferrer");
 }

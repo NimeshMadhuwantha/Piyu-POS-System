@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ORDER_PREFIXES, ORDER_SUFFIXES } from "./order-code";
 
 const nonNegativeNumber = z.number().min(0);
 export const orderItemSchema = z.object({
@@ -7,6 +8,11 @@ export const orderItemSchema = z.object({
   weight: nonNegativeNumber.optional(), unitPrice: nonNegativeNumber, discount: z.number().min(0).max(100, "Discount cannot exceed 100%"), subtotal: nonNegativeNumber,
 });
 export const orderFormSchema = z.object({
+  orderId: z.object({
+    prefix: z.enum(ORDER_PREFIXES),
+    number: z.string().trim().regex(/^[1-9]\d{3,}$/, "Enter at least 4 digits without a leading zero"),
+    suffix: z.enum(ORDER_SUFFIXES),
+  }),
   customer: z.object({
     name: z.string().trim().min(1, "Customer name is required"), email: z.union([z.literal(""), z.string().trim().email("Enter a valid email")]).optional(), mobile1: z.string().trim().min(7, "Primary mobile is required"),
     mobile2: z.string().optional(), address1: z.string().trim().min(1, "Address is required"), address2: z.string().optional(),

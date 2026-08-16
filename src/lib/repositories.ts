@@ -16,6 +16,7 @@ import {
 } from "firebase/firestore";
 import { auth, db, firebaseApiKey, firebaseProjectId } from "@/lib/firebase";
 import { readLocalSnapshot, saveLocalSnapshot, type LocalSnapshotName } from "@/lib/local-data";
+import { orderMiddleNumber } from "@/lib/order-code";
 import type { AppUser, BusinessSettings, Customer, Order, OrderLog, OrderStatus } from "@/types";
 
 export const FIRESTORE_SYNC_ERROR_EVENT = "piyu:firestore-sync-error";
@@ -131,6 +132,16 @@ export function saveOrder(order: Order, actor: AppUser, existing?: Order): strin
     ...(existing ? {} : { createdAtServer: serverTimestamp() }),
   }, { merge: Boolean(existing) });
 
+  if (!existing && order.orderNumber) {
+    batch.set(doc(db, "orderNumbers", order.orderNumber), {
+      orderId: order.id,
+      orderCode: order.orderCode,
+      createdBy: actor.uid,
+      createdAtClient: now,
+      createdAtServer: serverTimestamp(),
+    });
+  }
+
   const action = existing ? "Order updated" : "Order created";
   batch.set(doc(collection(db, "orderLogs")), {
     orderId: order.id,
@@ -191,6 +202,8 @@ export function deleteOrder(order: Order, actor: AppUser) {
   const now = new Date().toISOString();
   const batch = writeBatch(db);
   batch.delete(doc(db, "orders", order.id));
+  const reservedNumber = orderMiddleNumber(order);
+  if (reservedNumber) batch.delete(doc(db, "orderNumbers", reservedNumber));
   batch.set(doc(collection(db, "orderLogs")), {
     orderId: order.id,
     orderCode: order.orderCode,
@@ -308,8 +321,12 @@ export async function clearBusinessData(mode: ClearDataMode) {
     ]);
   }
   const orderRefs = orderSnapshot?.docs.map(item => item.ref) || [];
+  const orderNumberRefs = orderSnapshot?.docs
+    .map(item => orderMiddleNumber(item.data() as Order))
+    .filter((number): number is string => Boolean(number))
+    .map(number => doc(db, "orderNumbers", number)) || [];
   const logRefs = logSnapshot.docs.map(item => item.ref);
-  await deleteDocuments([...orderRefs, ...logRefs]);
+  await deleteDocuments([...orderRefs, ...orderNumberRefs, ...logRefs]);
   let customers = 0;
   if (mode.type === "all") {
     const customersSnapshot = await getDocs(collection(db, "customers"));

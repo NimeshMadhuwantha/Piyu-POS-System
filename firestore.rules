@@ -4,6 +4,14 @@ service cloud.firestore { match /databases/{database}/documents {
   function adminUser() { return activeUser() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'; }
   match /users/{uid} { allow read: if activeUser() && request.auth.uid == uid; allow write: if false; }
   match /orders/{id} { allow read, create, update: if activeUser(); allow delete: if adminUser(); }
+  // A create-only document keyed by the middle digits makes that number unique
+  // across every prefix and suffix.
+  match /orderNumbers/{number} {
+    allow read: if activeUser();
+    allow create: if activeUser() && number.matches('^[1-9][0-9]{3,}$');
+    allow update: if false;
+    allow delete: if adminUser();
+  }
   match /customers/{id} { allow read, create, update: if activeUser(); allow delete: if adminUser(); }
   match /orderLogs/{id} { allow read, create: if activeUser(); allow update: if false; allow delete: if adminUser(); }
   match /settings/{id} { allow read, create, update: if activeUser(); allow delete: if false; }

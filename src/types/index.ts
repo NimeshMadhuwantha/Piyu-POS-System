@@ -19,7 +19,7 @@ export interface ShippingDetails {
 }
 export interface PaymentDetails { method: PaymentMethod; status: PaymentStatus; }
 export interface Order {
-  id: string; orderCode: string; customerId?: string; customer: CustomerSnapshot; items: OrderItem[];
+  id: string; orderCode: string; orderPrefix?: string; orderNumber?: string; orderSuffix?: string; customerId?: string; customer: CustomerSnapshot; items: OrderItem[];
   shipping: ShippingDetails; payment: PaymentDetails; itemsSubtotal: number; orderDiscount: number;
   deliveryCharge: number; grandTotal: number; amountPaid: number; balance: number; orderStatus: OrderStatus;
   paymentStatus: PaymentStatus; notes?: string; requestDate: string; deliveryDate?: string;
