@@ -1,8 +1,8 @@
 "use client";
 
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { flushSync } from "react-dom";
 import { AlertTriangle, Edit3, Printer, Trash2 } from "lucide-react";
 import { updateCachedOrderStatus, useOrders } from "@/hooks/use-data";
@@ -10,8 +10,10 @@ import { useApp } from "@/components/providers";
 import { deleteOrder, getBusinessSettings, updateOrderStatus } from "@/lib/repositories";
 import { calculateLineWeight, formatLKR, orderTotalWeight } from "@/lib/calculations";
 import { StatusBadge } from "@/components/status-badge";
-import { Receipt, type ReceiptType } from "@/components/receipt";
+import type { ReceiptType } from "@/components/receipt";
+import { ReceiptPrintHost } from "@/components/receipt-print-host";
 import { primaryOrderStatus, type PrimaryOrderStatus } from "@/lib/order-status";
+import { clearPrintTarget, openPrintDialog, setPrintTarget } from "@/lib/printing";
 import type { BusinessSettings } from "@/types";
 
 const statuses: PrimaryOrderStatus[] = ["Pending", "Delivered", "Canceled", "Returned"];
@@ -19,70 +21,35 @@ const statuses: PrimaryOrderStatus[] = ["Pending", "Delivered", "Canceled", "Ret
 export default function OrderDetail() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { orders, loading } = useOrders();
   const { user } = useApp();
   const order = orders.find(item => item.id === id);
   const totalWeight = order ? orderTotalWeight(order) : 0;
-  const printArea = useRef<HTMLDivElement>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [statusChange, setStatusChange] = useState<{ orderId: string; previous: PrimaryOrderStatus; next: PrimaryOrderStatus } | null>(null);
   const [statusError, setStatusError] = useState("");
-  const autoPrinted = useRef(false);
   const [settings, setSettings] = useState<BusinessSettings>({ businessName: "Piyu POS", phone: "", address: "", receiptWidth: "80mm", footer: "Thank you!" });
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [selectedReceiptType, setSelectedReceiptType] = useState<ReceiptType>("full");
   const [printingMode, setPrintingMode] = useState<ReceiptType | null>(null);
   const [printError, setPrintError] = useState("");
 
   const printReceipt = useCallback((receiptType: ReceiptType) => {
-    const startedAt = performance.now();
-    const options = Array.from(printArea.current?.querySelectorAll<HTMLElement>(".receipt-print-option") || []);
-    const selected = options.find(option => option.dataset.receiptType === receiptType);
-    if (!selected) return;
-    options.forEach(option => option.classList.toggle("active-print-receipt", option === selected));
+    setPrintTarget("receipt");
     flushSync(() => {
       setPrintError("");
+      setSelectedReceiptType(receiptType);
       setPrintingMode(receiptType);
     });
-
-    const debugPrint = process.env.NODE_ENV !== "production";
-    const log = (step: string) => {
-      if (debugPrint) console.info(`[PRINT] ${step}: ${Math.round(performance.now() - startedAt)}ms`);
-    };
-    const beforePrint = () => log("beforeprint");
-    const cleanUpPrint = () => {
-      window.removeEventListener("beforeprint", beforePrint);
-      options.forEach(option => option.classList.remove("active-print-receipt"));
-      setPrintingMode(null);
-    };
-    const finishPrint = () => {
-      log("afterprint");
-      cleanUpPrint();
-    };
-    window.addEventListener("beforeprint", beforePrint, { once: true });
-    window.addEventListener("afterprint", finishPrint, { once: true });
-    log("receipt ready");
-    log("window.print called");
-    try {
-      window.print();
-    } catch (error) {
-      window.removeEventListener("afterprint", finishPrint);
-      cleanUpPrint();
-      const blockedByExtension = error instanceof Error && error.message.includes("Browser Locker");
-      setPrintError(blockedByExtension
-        ? "A browser extension blocked printing. Disable Browser Locker for this site, then try again."
-        : "The browser could not open the print screen. Check browser permissions and try again.");
+    const error = openPrintDialog();
+    setPrintingMode(null);
+    if (error) {
+      clearPrintTarget("receipt");
+      setPrintError(error);
     }
   }, []);
 
-  useEffect(() => { getBusinessSettings().then(setSettings).catch(() => undefined).finally(() => setSettingsLoaded(true)); }, []);
-  useEffect(() => {
-    const requestedPrint = searchParams.get("print");
-    if (!order || !settingsLoaded || !["full", "shipping", "item-list"].includes(requestedPrint || "") || autoPrinted.current) return;
-    autoPrinted.current = true;
-    const requestedType = requestedPrint === "item-list" ? "customer" : requestedPrint as ReceiptType;
-    requestAnimationFrame(() => printReceipt(requestedType));
-  }, [order, printReceipt, searchParams, settingsLoaded]);
+  useEffect(() => { getBusinessSettings().then(setSettings).catch(() => undefined); }, []);
+  useEffect(() => () => clearPrintTarget("receipt"), []);
 
   if (loading) return <div>Loading order...</div>;
   if (!order) return <div className="card">Order not found in the local database.</div>;
@@ -125,6 +92,6 @@ export default function OrderDetail() {
       <div className="order-bottom-actions"><Link className="btn secondary" href={`/orders/${id}/edit`}><Edit3 size={17}/>Edit order</Link>{user?.role === "admin" && <button className="btn danger" onClick={() => setDeleteOpen(true)}><Trash2 size={17}/>Delete order</button>}</div>
     </div>
     {deleteOpen && <div className="modal-backdrop no-print" role="presentation" onMouseDown={() => setDeleteOpen(false)}><section className="card confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="delete-title" onMouseDown={event => event.stopPropagation()}><AlertTriangle size={38} color="#dc2626"/><h2 id="delete-title">Delete {order.orderCode}?</h2><p>This permanently removes the order from the order list and Firebase after synchronization. An audit log of the deletion will remain.</p><div style={{display:"flex",justifyContent:"flex-end",gap:8}}><button className="btn secondary" onClick={() => setDeleteOpen(false)}>Keep order</button><button className="btn danger" onClick={confirmDelete}>Yes, delete order</button></div></section></div>}
-    <div className="print-only" ref={printArea}><div className="receipt-print-option" data-receipt-type="shipping"><Receipt order={displayedOrder} type="shipping" settings={settings}/></div><div className="receipt-print-option" data-receipt-type="customer"><Receipt order={displayedOrder} type="customer" settings={settings}/></div><div className="receipt-print-option" data-receipt-type="full"><Receipt order={displayedOrder} type="full" settings={settings}/></div></div>
+    <ReceiptPrintHost order={displayedOrder} type={selectedReceiptType} settings={settings}/>
   </>;
 }

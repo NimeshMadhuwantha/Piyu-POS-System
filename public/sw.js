@@ -1,5 +1,5 @@
-const CACHE = "piyu-pos-shell-v6";
-const SHELL = ["/", "/dashboard", "/orders", "/orders/new", "/customers", "/logs", "/reports", "/settings", "/manifest.webmanifest"];
+const CACHE = "piyu-pos-shell-v8";
+const SHELL = ["/", "/dashboard", "/orders", "/orders/new", "/customers", "/logs", "/reports", "/settings", "/manifest.webmanifest", "/icons/piyu%20logo.png"];
 
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).catch(() => undefined));

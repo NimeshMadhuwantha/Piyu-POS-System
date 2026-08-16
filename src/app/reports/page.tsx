@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { flushSync } from "react-dom";
 import { endOfWeek, format, isThisMonth, isThisWeek, isToday, isYesterday, startOfWeek, subDays } from "date-fns";
 import { Download, FileText, Printer } from "lucide-react";
 import { useOrders } from "@/hooks/use-data";
 import { downloadBlob, ordersCsv, reportPdf } from "@/lib/export";
 import { OrderList } from "@/components/order-list";
 import { primaryOrderStatus } from "@/lib/order-status";
+import { clearPrintTarget, openPrintDialog, setPrintTarget } from "@/lib/printing";
 
 export default function Reports() {
   const { orders } = useOrders();
@@ -15,6 +17,9 @@ export default function Reports() {
   const [end, setEnd] = useState("");
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfError, setPdfError] = useState("");
+  const [printBusy, setPrintBusy] = useState(false);
+  const [printError, setPrintError] = useState("");
+  useEffect(() => () => clearPrintTarget("document"), []);
   const data = useMemo(() => orders.filter(order => {
     const date = new Date(order.createdAtClient);
     if (period === "Today") return isToday(date);
@@ -65,6 +70,17 @@ export default function Reports() {
     }
   }
 
+  function printReport() {
+    setPrintTarget("document");
+    flushSync(() => {
+      setPrintError("");
+      setPrintBusy(true);
+    });
+    const error = openPrintDialog();
+    setPrintBusy(false);
+    if (error) setPrintError(error);
+  }
+
   return <>
     <div className="page-head"><div><h1>Reports</h1><span className="muted">Sales and order summary - {reportPeriod.label}</span></div></div>
     <div className="card no-print report-filters">
@@ -72,9 +88,10 @@ export default function Reports() {
       {period === "Custom" && <><label className="field">From<input type="date" value={start} onChange={event => setStart(event.target.value)}/></label><label className="field">To<input type="date" value={end} onChange={event => setEnd(event.target.value)}/></label></>}
       <button className="btn secondary" type="button" disabled={pdfBusy} onClick={createPdf}><FileText size={17}/>{pdfBusy ? "Creating…" : "PDF"}</button>
       <button className="btn secondary" onClick={() => downloadBlob(`${reportPeriod.filename}.csv`, ordersCsv(data), "text/csv")}><Download size={17}/>CSV</button>
-      <button className="btn" onClick={() => window.print()}><Printer size={17}/>Print report</button>
+      <button className="btn" type="button" disabled={printBusy} aria-busy={printBusy} onClick={printReport}>{printBusy ? <>Creating<span className="print-loading-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></> : <><Printer size={17}/>Print report</>}</button>
     </div>
     {pdfError && <p className="report-error no-print" role="alert">{pdfError}</p>}
+    {printError && <p className="report-error no-print" role="alert">{printError}</p>}
     <div className="report-stats">{stats.map(stat => <div className={`card report-stat ${stat.money ? "report-stat-money" : ""}`} key={stat.label}><small className="muted">{stat.label}</small>{stat.money ? <div className="report-money"><span>LKR</span><strong>{Number(stat.value).toLocaleString("en-LK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div> : <div className="report-stat-value">{stat.value}</div>}</div>)}</div>
     <OrderList key={`${period}-${start}-${end}`} orders={data} showWeight/>
   </>;

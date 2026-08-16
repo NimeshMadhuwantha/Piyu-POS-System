@@ -10,6 +10,7 @@ import { useApp } from "@/components/providers";
 import { CatalogSettings } from "@/components/catalog-settings";
 import { downloadBlob, ordersCsv } from "@/lib/export";
 import type { BusinessSettings } from "@/types";
+import { requestPersistentAppStorage } from "@/lib/local-data";
 
 const defaults: BusinessSettings = { businessName: "Piyu POS", phone: "", address: "", receiptWidth: "80mm", footer: "Thank you for your order!", productCategories: [], shippingOptions: [] };
 type ClearChoice = "logs" | "year" | "all";
@@ -28,8 +29,13 @@ export default function Settings() {
   const [clearing, setClearing] = useState(false);
   const [clearError, setClearError] = useState("");
   const [clearResult, setClearResult] = useState("");
+  const [persistentStorage, setPersistentStorage] = useState<boolean | null>();
 
-  useEffect(() => subscribeBusinessSettings(setSettings), []);
+  useEffect(() => {
+    const unsubscribe = subscribeBusinessSettings(setSettings);
+    void requestPersistentAppStorage().then(setPersistentStorage);
+    return unsubscribe;
+  }, []);
   const years = useMemo(() => Array.from(new Set([...orders.map(order => new Date(order.createdAtClient).getFullYear()), ...logs.map(log => new Date(log.clientTimestamp).getFullYear())])).filter(Number.isFinite).sort((a, b) => b - a), [orders, logs]);
   const estimatedBytes = useMemo(() => new TextEncoder().encode(JSON.stringify({ orders, logs, customers, settings })).length, [orders, logs, customers, settings]);
   const storagePercent = Math.min(100, estimatedBytes / APP_STORAGE_QUOTA_BYTES * 100);
@@ -85,9 +91,9 @@ export default function Settings() {
     </form>
     <CatalogSettings settings={settings} onChange={next => { setSettings(next); saveBusinessSettings(next); }}/>
 
-    <section className="card" style={{ maxWidth: 760, marginBottom: 16 }}><h2 className="section-title">Data export</h2><p>Download business data for a backup. Browser offline storage is only a cache and is not a backup.</p><div className="settings-actions"><button type="button" className="btn secondary" onClick={() => downloadBlob(`piyu-orders-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(orders, null, 2), "application/json")}><Download size={17}/>Export JSON</button><button type="button" className="btn secondary" onClick={() => downloadBlob("piyu-orders.csv", ordersCsv(orders), "text/csv")}><Download size={17}/>Export CSV</button></div></section>
+    <section className="card" style={{ maxWidth: 760, marginBottom: 16 }}><h2 className="section-title">Data export</h2><p>Download business data for a separate backup. Durable device storage improves offline use but does not replace an exported backup.</p><div className="settings-actions"><button type="button" className="btn secondary" onClick={() => downloadBlob(`piyu-orders-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(orders, null, 2), "application/json")}><Download size={17}/>Export JSON</button><button type="button" className="btn secondary" onClick={() => downloadBlob("piyu-orders.csv", ordersCsv(orders), "text/csv")}><Download size={17}/>Export CSV</button></div></section>
 
-    <section className="card" style={{ maxWidth: 760, marginBottom: 16 }}><h2 className="section-title section-title-icon"><Database size={19}/>Storage capacity</h2><div className="storage-summary"><div><b>{(estimatedBytes / 1024 / 1024).toFixed(2)} MB estimated</b><span className="muted"> of the 150 MB application target</span></div><div className="storage-track"><span style={{ width: `${storagePercent}%` }}/></div><small className="muted">{orders.length.toLocaleString()} orders · {logs.length.toLocaleString()} logs · {customers.length.toLocaleString()} customers. This is an application estimate; Firebase indexes and metadata are visible only in the Firebase usage console.</small>{storagePercent >= 100 && <div className="capacity-warning"><AlertTriangle size={20}/><div><b>The 150 MB application target has been reached.</b><br/><span>Export a backup and clear old data below.</span></div></div>}</div></section>
+    <section className="card" style={{ maxWidth: 760, marginBottom: 16 }}><h2 className="section-title section-title-icon"><Database size={19}/>Storage capacity</h2><div className="storage-summary"><div><b>{(estimatedBytes / 1024 / 1024).toFixed(2)} MB estimated</b><span className="muted"> of the 150 MB application target</span></div><div className="storage-track"><span style={{ width: `${storagePercent}%` }}/></div><small className="muted">Device storage: {persistentStorage === true ? "protected from automatic cleanup" : persistentStorage === false ? "best effort (the browser did not grant persistent protection)" : persistentStorage === null ? "best effort (persistent protection is unavailable)" : "checking support"}.</small><small className="muted">{orders.length.toLocaleString()} orders · {logs.length.toLocaleString()} logs · {customers.length.toLocaleString()} customers. This is an application estimate; Firebase indexes and metadata are visible only in the Firebase usage console.</small>{storagePercent >= 100 && <div className="capacity-warning"><AlertTriangle size={20}/><div><b>The 150 MB application target has been reached.</b><br/><span>Export a backup and clear old data below.</span></div></div>}</div></section>
 
     <section className="card danger-zone" style={{ maxWidth: 760 }}><h2 className="section-title"><Trash2 size={19}/>Clear data</h2>{user?.role !== "admin" ? <p className="muted">Only administrators can clear Firebase data.</p> : <><p>Deletion removes records from Cloud Firestore and every device’s synchronized offline cache. Export a backup first.</p>{clearResult && <p className="settings-success"><CheckCircle2 size={17}/>{clearResult}</p>}<div className="clear-options"><div><b>Clear all logs</b><span>Keep orders and customers.</span><button type="button" className="btn danger" onClick={() => openConfirmation("logs")}>Clear logs</button></div><div><b>Clear data by year</b><span>Delete that year’s orders/logs and customers with no remaining orders.</span><label className="field">Year<select value={year} onChange={event => setYear(Number(event.target.value))}>{(years.length ? years : [new Date().getFullYear()]).map(value => <option key={value}>{value}</option>)}</select></label><button type="button" className="btn danger" onClick={() => openConfirmation("year")}>Clear {year}</button></div><div><b>Clear all business data</b><span>Delete all orders, logs, and customers. Users and settings remain.</span><button type="button" className="btn danger" onClick={() => openConfirmation("all")}>Clear everything</button></div></div></>}</section>
 
