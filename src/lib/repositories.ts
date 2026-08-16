@@ -16,13 +16,19 @@ import {
 } from "firebase/firestore";
 import { auth, db, firebaseApiKey, firebaseProjectId } from "@/lib/firebase";
 import { readLocalSnapshot, saveLocalSnapshot, type LocalSnapshotName } from "@/lib/local-data";
+import { orderMiddleNumber } from "@/lib/order-code";
 import type { AppUser, BusinessSettings, Customer, Order, OrderLog, OrderStatus } from "@/types";
 
 export const FIRESTORE_SYNC_ERROR_EVENT = "piyu:firestore-sync-error";
 export const FIRESTORE_CONNECTION_EVENT = "piyu:firestore-connection";
 const BUSINESS_SETTINGS_KEY = "piyu-pos-business-settings";
 const DEFAULT_BUSINESS_SETTINGS: BusinessSettings = { businessName: "Piyu POS", phone: "", address: "", receiptWidth: "80mm", footer: "Thank you for your order!", productCategories: [], shippingOptions: [] };
-const normalizeBusinessSettings = (settings: BusinessSettings): BusinessSettings => ({ ...DEFAULT_BUSINESS_SETTINGS, ...settings, productCategories: settings.productCategories || [], shippingOptions: settings.shippingOptions || [] });
+const normalizeBusinessSettings = (settings: BusinessSettings): BusinessSettings => ({
+  ...DEFAULT_BUSINESS_SETTINGS,
+  ...settings,
+  productCategories: settings.productCategories || [],
+  shippingOptions: (settings.shippingOptions || []).map(option => ({ id: option.id, name: option.name, courier: option.courier || "" })),
+});
 export const MAX_COLLECTION_RECORDS = 3000;
 export const APP_STORAGE_QUOTA_BYTES = 150 * 1024 * 1024;
 
@@ -131,6 +137,16 @@ export function saveOrder(order: Order, actor: AppUser, existing?: Order): strin
     ...(existing ? {} : { createdAtServer: serverTimestamp() }),
   }, { merge: Boolean(existing) });
 
+  if (!existing && order.orderNumber) {
+    batch.set(doc(db, "orderNumbers", order.orderNumber), {
+      orderId: order.id,
+      orderCode: order.orderCode,
+      createdBy: actor.uid,
+      createdAtClient: now,
+      createdAtServer: serverTimestamp(),
+    });
+  }
+
   const action = existing ? "Order updated" : "Order created";
   batch.set(doc(collection(db, "orderLogs")), {
     orderId: order.id,
@@ -191,6 +207,8 @@ export function deleteOrder(order: Order, actor: AppUser) {
   const now = new Date().toISOString();
   const batch = writeBatch(db);
   batch.delete(doc(db, "orders", order.id));
+  const reservedNumber = orderMiddleNumber(order);
+  if (reservedNumber) batch.delete(doc(db, "orderNumbers", reservedNumber));
   batch.set(doc(collection(db, "orderLogs")), {
     orderId: order.id,
     orderCode: order.orderCode,
@@ -259,9 +277,10 @@ export function subscribeBusinessSettings(callback: (settings: BusinessSettings)
 }
 
 export function saveBusinessSettings(settings: BusinessSettings) {
-  if (typeof window !== "undefined") localStorage.setItem(BUSINESS_SETTINGS_KEY, JSON.stringify(settings));
-  saveLocalSnapshot("settings", normalizeBusinessSettings(settings));
-  queueCommit(setDoc(doc(db, "settings", "business"), settings));
+  const normalized = normalizeBusinessSettings(settings);
+  if (typeof window !== "undefined") localStorage.setItem(BUSINESS_SETTINGS_KEY, JSON.stringify(normalized));
+  saveLocalSnapshot("settings", normalized);
+  queueCommit(setDoc(doc(db, "settings", "business"), normalized));
 }
 
 type ClearDataMode = { type: "logs" } | { type: "year"; year: number } | { type: "all" };
@@ -308,8 +327,12 @@ export async function clearBusinessData(mode: ClearDataMode) {
     ]);
   }
   const orderRefs = orderSnapshot?.docs.map(item => item.ref) || [];
+  const orderNumberRefs = orderSnapshot?.docs
+    .map(item => orderMiddleNumber(item.data() as Order))
+    .filter((number): number is string => Boolean(number))
+    .map(number => doc(db, "orderNumbers", number)) || [];
   const logRefs = logSnapshot.docs.map(item => item.ref);
-  await deleteDocuments([...orderRefs, ...logRefs]);
+  await deleteDocuments([...orderRefs, ...orderNumberRefs, ...logRefs]);
   let customers = 0;
   if (mode.type === "all") {
     const customersSnapshot = await getDocs(collection(db, "customers"));

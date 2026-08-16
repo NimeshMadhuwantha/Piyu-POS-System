@@ -8,7 +8,7 @@ const esc = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""')}"`
 export function ordersCsv(orders: Order[]) {
   const itemValues = (order: Order, value: (item: Order["items"][number]) => unknown) => order.items.map(item => String(value(item) ?? "")).join(" | ");
   const rows = [[
-    "Created date/time", "Updated date/time", "Order code", "Order ID", "Customer ID", "Customer name", "Email", "Mobile 1", "Mobile 2",
+    "Created date/time", "Updated date/time", "Order ID", "Internal record ID", "Customer ID", "Customer name", "Email", "Primary mobile", "WhatsApp number",
     "Address line 1", "Address line 2", "City", "District", "Customer note", "Item names", "Item categories", "Quantities", "Units",
     "Unit weights (g)", "Line weights (g)", "Unit prices (LKR)", "Item discounts (%)", "Line totals (LKR)", "Total item quantity", "Total weight (g)",
     "Shipping method", "Courier / company", "Tracking number", "Shipping note", "Request date", "Delivery date", "Payment method", "Payment status",

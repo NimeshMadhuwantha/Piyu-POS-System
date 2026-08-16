@@ -19,7 +19,7 @@ export interface ShippingDetails {
 }
 export interface PaymentDetails { method: PaymentMethod; status: PaymentStatus; }
 export interface Order {
-  id: string; orderCode: string; customerId?: string; customer: CustomerSnapshot; items: OrderItem[];
+  id: string; orderCode: string; orderPrefix?: string; orderNumber?: string; orderSuffix?: string; customerId?: string; customer: CustomerSnapshot; items: OrderItem[];
   shipping: ShippingDetails; payment: PaymentDetails; itemsSubtotal: number; orderDiscount: number;
   deliveryCharge: number; grandTotal: number; amountPaid: number; balance: number; orderStatus: OrderStatus;
   paymentStatus: PaymentStatus; notes?: string; requestDate: string; deliveryDate?: string;
@@ -34,6 +34,5 @@ export interface OrderLog {
 export interface AppUser { uid: string; name: string; email: string; role: "admin" | "staff"; active: boolean; }
 export interface CatalogItem { id: string; name: string; unit: string; weight: number; unitPrice: number; discount: number; }
 export interface ProductCategory { id: string; name: string; items: CatalogItem[]; }
-export interface ShippingRate { id: string; minWeight: number; maxWeight: number; price: number; }
-export interface ShippingOption { id: string; name: string; courier: string; rates: ShippingRate[]; }
+export interface ShippingOption { id: string; name: string; courier: string; }
 export interface BusinessSettings { businessName: string; phone: string; address: string; receiptWidth: "58mm" | "80mm" | "A4/4" | "A4"; footer: string; productCategories?: ProductCategory[]; shippingOptions?: ShippingOption[]; }

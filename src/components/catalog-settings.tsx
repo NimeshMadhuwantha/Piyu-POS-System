@@ -2,12 +2,11 @@
 
 import { useState } from "react";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
-import type { BusinessSettings, CatalogItem, ProductCategory, ShippingOption, ShippingRate } from "@/types";
+import type { BusinessSettings, CatalogItem, ProductCategory, ShippingOption } from "@/types";
 
-type DeleteTarget = { kind: "category"; id: string; label: string } | { kind: "item"; categoryId: string; id: string; label: string } | { kind: "shipping"; id: string; label: string } | { kind: "rate"; shippingId: string; id: string; label: string };
+type DeleteTarget = { kind: "category"; id: string; label: string } | { kind: "item"; categoryId: string; id: string; label: string } | { kind: "shipping"; id: string; label: string };
 const id = () => crypto.randomUUID();
 const blankItem = (): CatalogItem => ({ id: id(), name: "", unit: "pcs", weight: 0, unitPrice: 0, discount: 0 });
-const blankRate = (): ShippingRate => ({ id: id(), minWeight: 0, maxWeight: 0, price: 0 });
 
 export function CatalogSettings({ settings, onChange }: { settings: BusinessSettings; onChange: (settings: BusinessSettings) => void }) {
   const categories = settings.productCategories || [];
@@ -16,12 +15,9 @@ export function CatalogSettings({ settings, onChange }: { settings: BusinessSett
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [itemDrafts, setItemDrafts] = useState<Record<string, CatalogItem>>({});
   const [editingItem, setEditingItem] = useState<{ categoryId: string; id: string } | null>(null);
-  const [shippingDraft, setShippingDraft] = useState<ShippingOption>({ id: id(), name: "", courier: "", rates: [] });
+  const [shippingDraft, setShippingDraft] = useState<ShippingOption>({ id: id(), name: "", courier: "" });
   const [editingShipping, setEditingShipping] = useState<string | null>(null);
-  const [rateDrafts, setRateDrafts] = useState<Record<string, ShippingRate>>({});
-  const [editingRate, setEditingRate] = useState<{ shippingId: string; id: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
-  const [error, setError] = useState("");
 
   const updateCategories = (productCategories: ProductCategory[]) => onChange({ ...settings, productCategories });
   const updateShipping = (shippingOptions: ShippingOption[]) => onChange({ ...settings, shippingOptions });
@@ -38,26 +34,15 @@ export function CatalogSettings({ settings, onChange }: { settings: BusinessSett
   }
   function saveShipping() {
     const name = shippingDraft.name.trim(); if (!name) return;
-    const next = { ...shippingDraft, name, courier: shippingDraft.courier.trim() };
+    const next = { id: shippingDraft.id, name, courier: shippingDraft.courier.trim() };
     updateShipping(editingShipping ? shipping.map(option => option.id === editingShipping ? next : option) : [...shipping, next]);
-    setShippingDraft({ id: id(), name: "", courier: "", rates: [] }); setEditingShipping(null);
-  }
-  function saveRate(shippingId: string) {
-    const draft = rateDrafts[shippingId] || blankRate();
-    const option = shipping.find(item => item.id === shippingId);
-    if (draft.maxWeight < draft.minWeight) { setError("The ending weight must be greater than or equal to the starting weight."); return; }
-    const overlaps = option?.rates.some(rate => rate.id !== editingRate?.id && draft.minWeight <= rate.maxWeight && draft.maxWeight >= rate.minWeight);
-    if (overlaps) { setError("Shipping weight ranges cannot overlap."); return; }
-    setError("");
-    updateShipping(shipping.map(option => option.id !== shippingId ? option : { ...option, rates: editingRate?.shippingId === shippingId ? option.rates.map(rate => rate.id === editingRate.id ? draft : rate) : [...option.rates, draft].sort((a, b) => a.minWeight - b.minWeight) }));
-    setRateDrafts(current => ({ ...current, [shippingId]: blankRate() })); setEditingRate(null);
+    setShippingDraft({ id: id(), name: "", courier: "" }); setEditingShipping(null);
   }
   function confirmDelete() {
     if (!deleteTarget) return;
     if (deleteTarget.kind === "category") updateCategories(categories.filter(category => category.id !== deleteTarget.id));
     if (deleteTarget.kind === "item") updateCategories(categories.map(category => category.id === deleteTarget.categoryId ? { ...category, items: category.items.filter(item => item.id !== deleteTarget.id) } : category));
     if (deleteTarget.kind === "shipping") updateShipping(shipping.filter(option => option.id !== deleteTarget.id));
-    if (deleteTarget.kind === "rate") updateShipping(shipping.map(option => option.id === deleteTarget.shippingId ? { ...option, rates: option.rates.filter(rate => rate.id !== deleteTarget.id) } : option));
     setDeleteTarget(null);
   }
 
@@ -72,13 +57,10 @@ export function CatalogSettings({ settings, onChange }: { settings: BusinessSett
     </section>
 
     <section className="card catalog-settings" style={{ maxWidth: 1000, marginBottom: 16 }}>
-      <h2 className="section-title">Shipping methods & weight rates</h2><p className="muted">Create courier options and prices for parcel-weight ranges in grams.</p>
-      {error && <p className="form-error" role="alert">{error}</p>}
+      <h2 className="section-title">Shipping methods & courier companies</h2><p className="muted">Create the shipping methods and courier companies available in new orders.</p>
       <div className="catalog-create shipping-create"><label className="field">Shipping method<input value={shippingDraft.name} onChange={event => setShippingDraft({ ...shippingDraft, name: event.target.value })} placeholder="Example: Islandwide Delivery"/></label><label className="field">Courier / company<input value={shippingDraft.courier} onChange={event => setShippingDraft({ ...shippingDraft, courier: event.target.value })}/></label><button type="button" className="btn" onClick={saveShipping}>{editingShipping ? "Update method" : <><Plus size={17}/>Add method</>}</button></div>
-      <div className="catalog-list">{shipping.map(option => { const draft = rateDrafts[option.id] || blankRate(); return <article className="catalog-group" key={option.id}><header><div><h3>{option.name}</h3><small className="muted">{option.courier || "No courier company"}</small></div><div><button type="button" className="icon-btn" onClick={() => { setEditingShipping(option.id); setShippingDraft({ ...option }); }}><Pencil size={16}/></button><button type="button" className="icon-btn danger-icon" onClick={() => setDeleteTarget({ kind: "shipping", id: option.id, label: option.name })}><Trash2 size={16}/></button></div></header>
-        {option.rates.length > 0 && <div className="catalog-rows">{option.rates.map(rate => <div key={rate.id}><b>{rate.minWeight}g - {rate.maxWeight}g</b><span>LKR {rate.price.toFixed(2)}</span><div><button type="button" className="icon-btn" onClick={() => { setEditingRate({ shippingId: option.id, id: rate.id }); setRateDrafts(current => ({ ...current, [option.id]: { ...rate } })); }}><Pencil size={15}/></button><button type="button" className="icon-btn danger-icon" onClick={() => setDeleteTarget({ kind: "rate", shippingId: option.id, id: rate.id, label: `${rate.minWeight}g–${rate.maxWeight}g rate` })}><Trash2 size={15}/></button></div></div>)}</div>}
-        <div className="rate-form"><label className="field">From (g)<input type="number" min="0" placeholder="0" value={draft.minWeight || ""} onChange={event => setRateDrafts(current => ({ ...current, [option.id]: { ...draft, minWeight: Number(event.target.value) } }))}/></label><label className="field">To (g)<input type="number" min="0" placeholder="0" value={draft.maxWeight || ""} onChange={event => setRateDrafts(current => ({ ...current, [option.id]: { ...draft, maxWeight: Number(event.target.value) } }))}/></label><label className="field">Price (LKR)<input type="number" min="0" step="0.01" placeholder="0" value={draft.price || ""} onChange={event => setRateDrafts(current => ({ ...current, [option.id]: { ...draft, price: Number(event.target.value) } }))}/></label><button type="button" className="btn secondary" onClick={() => saveRate(option.id)}>{editingRate?.shippingId === option.id ? "Update rate" : "Add rate"}</button></div>
-      </article>; })}{!shipping.length && <p className="muted">No shipping methods yet.</p>}</div>
+      <div className="catalog-list">{shipping.map(option => <article className="catalog-group" key={option.id}><header><div><h3>{option.name}</h3><small className="muted">{option.courier || "No courier company"}</small></div><div><button type="button" className="icon-btn" onClick={() => { setEditingShipping(option.id); setShippingDraft({ id: option.id, name: option.name, courier: option.courier }); }}><Pencil size={16}/></button><button type="button" className="icon-btn danger-icon" onClick={() => setDeleteTarget({ kind: "shipping", id: option.id, label: option.name })}><Trash2 size={16}/></button></div></header>
+      </article>)}{!shipping.length && <p className="muted">No shipping methods yet.</p>}</div>
     </section>
 
     {deleteTarget && <div className="modal-backdrop" onMouseDown={() => setDeleteTarget(null)}><section className="card confirm-modal" onMouseDown={event => event.stopPropagation()}><button className="modal-close" type="button" onClick={() => setDeleteTarget(null)}><X size={20}/></button><Trash2 size={36} color="#dc2626"/><h2>Delete {deleteTarget.label}?</h2><p>Existing orders will keep their saved details. This option will no longer be available for new orders.</p><div className="settings-actions"><button type="button" className="btn secondary" onClick={() => setDeleteTarget(null)}>No, keep it</button><button type="button" className="btn danger" onClick={confirmDelete}>Yes, delete</button></div></section></div>}
