@@ -18,6 +18,10 @@ export interface ShippingDetails {
   method: ShippingMethod; courier?: string; trackingNumber?: string; parcelWeight?: number; note?: string; methodId?: string;
 }
 export interface PaymentDetails { method: PaymentMethod; status: PaymentStatus; }
+export interface DeliveryConfirmation {
+  trackingNumber: string; parcelWeight: number; value: number; deliveryPaid: boolean;
+  confirmedAtClient: string; confirmedBy: string; confirmedByName: string;
+}
 export interface Order {
   id: string; orderCode: string; orderPrefix?: string; orderNumber?: string; orderSuffix?: string; customerId?: string; customer: CustomerSnapshot; items: OrderItem[];
   shipping: ShippingDetails; payment: PaymentDetails; itemsSubtotal: number; orderDiscount: number;
@@ -25,6 +29,7 @@ export interface Order {
   paymentStatus: PaymentStatus; notes?: string; requestDate: string; deliveryDate?: string;
   createdBy: string; createdByName: string; updatedBy: string; createdAtClient: string; updatedAtClient: string;
   createdAtServer?: unknown; updatedAtServer?: unknown; schemaVersion: number; pending?: boolean;
+  deliveryConfirmation?: DeliveryConfirmation;
 }
 export interface OrderLog {
   id: string; orderId: string; orderCode: string; action: string; description: string;

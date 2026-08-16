@@ -17,7 +17,7 @@ import {
 import { auth, db, firebaseApiKey, firebaseProjectId } from "@/lib/firebase";
 import { readLocalSnapshot, saveLocalSnapshot, type LocalSnapshotName } from "@/lib/local-data";
 import { orderMiddleNumber } from "@/lib/order-code";
-import type { AppUser, BusinessSettings, Customer, Order, OrderLog, OrderStatus } from "@/types";
+import type { AppUser, BusinessSettings, Customer, DeliveryConfirmation, Order, OrderLog, OrderStatus } from "@/types";
 
 export const FIRESTORE_SYNC_ERROR_EVENT = "piyu:firestore-sync-error";
 export const FIRESTORE_CONNECTION_EVENT = "piyu:firestore-connection";
@@ -201,6 +201,36 @@ export function updateOrderStatus(order: Order, status: OrderStatus, actor: AppU
   const commit = batch.commit();
   queueCommit(commit);
   return commit;
+}
+
+export function confirmOrderDelivery(order: Order, details: Omit<DeliveryConfirmation, "confirmedAtClient" | "confirmedBy" | "confirmedByName">, actor: AppUser) {
+  const now = new Date().toISOString();
+  const deliveryConfirmation: DeliveryConfirmation = { ...details, confirmedAtClient: now, confirmedBy: actor.uid, confirmedByName: actor.name };
+  const batch = writeBatch(db);
+  batch.update(doc(db, "orders", order.id), {
+    orderStatus: "Delivered",
+    "shipping.trackingNumber": deliveryConfirmation.trackingNumber,
+    "shipping.parcelWeight": deliveryConfirmation.parcelWeight,
+    deliveryConfirmation,
+    updatedBy: actor.uid,
+    updatedAtClient: now,
+    updatedAtServer: serverTimestamp(),
+  });
+  batch.set(doc(collection(db, "orderLogs")), {
+    orderId: order.id,
+    orderCode: order.orderCode,
+    action: "Delivery confirmed",
+    description: `Delivery confirmed and WhatsApp message prepared by ${actor.name}`,
+    previousValue: { orderStatus: order.orderStatus, deliveryConfirmation: order.deliveryConfirmation || null },
+    newValue: { orderStatus: "Delivered", deliveryConfirmation },
+    actorUid: actor.uid,
+    actorName: actor.name,
+    clientTimestamp: now,
+    serverTimestamp: serverTimestamp(),
+  });
+  const commit = batch.commit();
+  queueCommit(commit);
+  return { deliveryConfirmation, commit };
 }
 
 export function deleteOrder(order: Order, actor: AppUser) {

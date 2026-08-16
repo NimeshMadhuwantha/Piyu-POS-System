@@ -11,7 +11,7 @@ export function ordersCsv(orders: Order[]) {
     "Created date/time", "Updated date/time", "Order ID", "Internal record ID", "Customer ID", "Customer name", "Email", "Primary mobile", "WhatsApp number",
     "Address line 1", "Address line 2", "City", "District", "Customer note", "Item names", "Item categories", "Quantities", "Units",
     "Unit weights (g)", "Line weights (g)", "Unit prices (LKR)", "Item discounts (%)", "Line totals (LKR)", "Total item quantity", "Total weight (g)",
-    "Shipping method", "Courier / company", "Tracking number", "Shipping note", "Request date", "Delivery date", "Payment method", "Payment status",
+    "Shipping method", "Courier / company", "Tracking number", "Confirmed parcel weight (g)", "Delivery value (LKR)", "Deliver paid", "Delivery confirmed at", "Shipping note", "Request date", "Delivery date", "Payment method", "Payment status",
     "Items subtotal (LKR)", "Order discount (LKR)", "Shipping charge (LKR)", "Grand total (LKR)", "Paid (LKR)", "Balance (LKR)",
     "Order status", "Order notes", "Created by", "Created by user ID", "Updated by user ID", "Sync status",
   ], ...orders.map(order => [
@@ -21,7 +21,7 @@ export function ordersCsv(orders: Order[]) {
     itemValues(order, item => item.unit), itemValues(order, item => item.weight || 0), itemValues(order, item => calculateLineWeight(item.weight, item.quantity)),
     itemValues(order, item => item.unitPrice), itemValues(order, item => item.discount), itemValues(order, item => item.subtotal),
     order.items.reduce((sum, item) => sum + item.quantity, 0), orderTotalWeight(order), order.shipping.method, order.shipping.courier || "",
-    order.shipping.trackingNumber || "", order.shipping.note || "", order.requestDate, order.deliveryDate || "", order.payment.method, order.paymentStatus,
+    order.shipping.trackingNumber || "", order.deliveryConfirmation?.parcelWeight || "", order.deliveryConfirmation?.value ?? "", order.deliveryConfirmation?.deliveryPaid ? "Yes" : "No", order.deliveryConfirmation?.confirmedAtClient || "", order.shipping.note || "", order.requestDate, order.deliveryDate || "", order.payment.method, order.paymentStatus,
     order.itemsSubtotal, order.orderDiscount, order.deliveryCharge, order.grandTotal, order.amountPaid, order.balance, primaryOrderStatus(order.orderStatus),
     order.notes || "", order.createdByName, order.createdBy, order.updatedBy, order.pending ? "Waiting to sync" : "Synced",
   ])];

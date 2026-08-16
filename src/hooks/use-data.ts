@@ -2,7 +2,7 @@
 
 import { useMemo, useSyncExternalStore } from "react";
 import { subscribeCustomers, subscribeLogs, subscribeOrders } from "@/lib/repositories";
-import type { Customer, Order, OrderLog, OrderStatus } from "@/types";
+import type { Customer, DeliveryConfirmation, Order, OrderLog, OrderStatus } from "@/types";
 
 type Listener = () => void;
 type Stop = () => void;
@@ -68,6 +68,16 @@ export function useOrders() {
 
 export function updateCachedOrderStatus(orderId: string, orderStatus: OrderStatus) {
   ordersStore.updateValue(orders => orders.map(order => order.id === orderId ? { ...order, orderStatus } : order));
+}
+
+export function updateCachedOrderDelivery(orderId: string, deliveryConfirmation: DeliveryConfirmation) {
+  ordersStore.updateValue(orders => orders.map(order => order.id === orderId ? {
+    ...order,
+    orderStatus: "Delivered",
+    shipping: { ...order.shipping, trackingNumber: deliveryConfirmation.trackingNumber, parcelWeight: deliveryConfirmation.parcelWeight },
+    deliveryConfirmation,
+    updatedAtClient: deliveryConfirmation.confirmedAtClient,
+  } : order));
 }
 
 export function useCustomers() {
