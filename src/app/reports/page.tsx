@@ -33,6 +33,7 @@ export default function Reports() {
   const [pdfError, setPdfError] = useState("");
   const [printBusy, setPrintBusy] = useState(false);
   const [printError, setPrintError] = useState("");
+  const [printGeneratedAt, setPrintGeneratedAt] = useState("");
   useEffect(() => () => clearPrintTarget("document"), []);
   const data = useMemo(() => orders.filter(order => {
     const date = new Date(order.createdAtClient);
@@ -94,14 +95,21 @@ export default function Reports() {
     flushSync(() => {
       setPrintError("");
       setPrintBusy(true);
+      setPrintGeneratedAt(new Date().toISOString());
     });
     const error = openPrintDialog();
     setPrintBusy(false);
     if (error) setPrintError(error);
   }
 
-  return <>
-    <div className="page-head"><div><h1>Reports</h1><span className="muted">Sales and order summary - {reportPeriod.label}</span></div></div>
+  return <main className="reports-page">
+    <div className="page-head report-screen-head"><div><h1>Reports</h1><span className="muted">Sales and order summary - {reportPeriod.label}</span></div></div>
+    <header className="report-print-header">
+      <h1>Piyu POS Report</h1>
+      <p><b>Reporting period:</b> {reportPeriod.label}</p>
+      <div><span><b>Date filter:</b> {period}</span><span><b>Order ID type:</b> {orderPrefix}</span><span><b>Order ID series:</b> {orderSuffix}</span><span><b>Status:</b> {status}</span></div>
+      <small>Generated: {printGeneratedAt ? format(new Date(printGeneratedAt), "dd MMMM yyyy, h:mm a") : ""}</small>
+    </header>
     <div className="card no-print report-filters">
       <label className="field">Date range<select value={period} onChange={event => setPeriod(event.target.value)}>{["Today", "Yesterday", "This Week", "This Month", "Custom", "All time"].map(value => <option key={value}>{value}</option>)}</select></label>
       {period === "Custom" && <><label className="field">From<input type="date" value={start} onChange={event => setStart(event.target.value)}/></label><label className="field">To<input type="date" value={end} onChange={event => setEnd(event.target.value)}/></label></>}
@@ -116,5 +124,5 @@ export default function Reports() {
     {printError && <p className="report-error no-print" role="alert">{printError}</p>}
     <div className="report-stats">{stats.map(stat => <div className={`card report-stat ${stat.money ? "report-stat-money" : ""}`} key={stat.label}><small className="muted">{stat.label}</small>{stat.money ? <div className="report-money"><span>LKR</span><strong>{Number(stat.value).toLocaleString("en-LK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div> : <div className="report-stat-value">{stat.value}</div>}</div>)}</div>
     <OrderList key={`${period}-${start}-${end}-${orderPrefix}-${orderSuffix}-${status}`} orders={data} showWeight/>
-  </>;
+  </main>;
 }
