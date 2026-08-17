@@ -1,20 +1,7 @@
 import { format } from "date-fns";
 import { downloadBlob } from "@/lib/export";
-import type { BusinessSettings, Order } from "@/types";
+import type { BusinessSettings, CommercialInvoiceDetails, Order } from "@/types";
 import type { jsPDF as JsPdf } from "jspdf";
-
-export interface CommercialInvoiceDetails {
-  countryAndZip: string;
-  description: string;
-  descriptionHtml?: string;
-  descriptionBold: boolean;
-  descriptionItalic: boolean;
-  totalQuantity: number;
-  totalNetWeight: string;
-  totalGrossWeight: string;
-  boxDimensions: string;
-  shippingCharges: number;
-}
 
 const MAROON: [number, number, number] = [101, 21, 43];
 const MAROON_LIGHT: [number, number, number] = [255, 242, 245];
@@ -187,9 +174,7 @@ export async function createCommercialInvoicePdf(order: Order, settings: Busines
   const shipLines = doc.splitTextToSize(customerAddress || "Address not provided", partyWidth - 8).slice(0, 2);
   doc.text(shipLines, shipX, partyY + 19, { lineHeightFactor: 1.3 });
   let shipInfoY = partyY + 19 + shipLines.length * 3.8;
-  doc.setFont("helvetica", "bold");
-  doc.text(`Country / ZIP: ${details.countryAndZip}`, shipX, shipInfoY);
-  doc.setFont("helvetica", "normal");
+  doc.text(details.countryAndZip, shipX, shipInfoY);
   shipInfoY += 4;
   if (customerMobiles) { doc.text(`Mobile: ${customerMobiles}`, shipX, shipInfoY); shipInfoY += 4; }
   if (order.customer.email) doc.text(`Email: ${order.customer.email}`, shipX, shipInfoY);

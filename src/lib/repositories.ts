@@ -17,7 +17,7 @@ import {
 import { auth, db, firebaseApiKey, firebaseProjectId } from "@/lib/firebase";
 import { readLocalSnapshot, saveLocalSnapshot, type LocalSnapshotName } from "@/lib/local-data";
 import { orderMiddleNumber } from "@/lib/order-code";
-import type { AppUser, BusinessSettings, Customer, DeliveryConfirmation, Order, OrderLog, OrderStatus } from "@/types";
+import type { AppUser, BusinessSettings, CommercialInvoiceDetails, Customer, DeliveryConfirmation, Order, OrderLog, OrderStatus } from "@/types";
 
 export const FIRESTORE_SYNC_ERROR_EVENT = "piyu:firestore-sync-error";
 export const FIRESTORE_CONNECTION_EVENT = "piyu:firestore-connection";
@@ -232,6 +232,18 @@ export function confirmOrderDelivery(order: Order, details: Omit<DeliveryConfirm
   const commit = batch.commit();
   queueCommit(commit);
   return { deliveryConfirmation, commit };
+}
+
+export function saveCommercialInvoiceDetails(order: Order, commercialInvoice: CommercialInvoiceDetails, actor: AppUser) {
+  const updatedAtClient = new Date().toISOString();
+  const commit = setDoc(doc(db, "orders", order.id), {
+    commercialInvoice,
+    updatedBy: actor.uid,
+    updatedAtClient,
+    updatedAtServer: serverTimestamp(),
+  }, { merge: true });
+  queueCommit(commit);
+  return { updatedAtClient, commit };
 }
 
 export function deleteOrder(order: Order, actor: AppUser) {

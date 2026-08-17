@@ -22,6 +22,10 @@ export interface DeliveryConfirmation {
   trackingNumber: string; parcelWeight: number; value: number; deliveryPaid: boolean;
   confirmedAtClient: string; confirmedBy: string; confirmedByName: string;
 }
+export interface CommercialInvoiceDetails {
+  countryAndZip: string; description: string; descriptionHtml?: string; descriptionBold: boolean; descriptionItalic: boolean;
+  totalQuantity: number; totalNetWeight: string; totalGrossWeight: string; boxDimensions: string; shippingCharges: number;
+}
 export interface Order {
   id: string; orderCode: string; orderPrefix?: string; orderNumber?: string; orderSuffix?: string; customerId?: string; customer: CustomerSnapshot; items: OrderItem[];
   shipping: ShippingDetails; payment: PaymentDetails; itemsSubtotal: number; orderDiscount: number;
@@ -30,6 +34,7 @@ export interface Order {
   createdBy: string; createdByName: string; updatedBy: string; createdAtClient: string; updatedAtClient: string;
   createdAtServer?: unknown; updatedAtServer?: unknown; schemaVersion: number; pending?: boolean;
   deliveryConfirmation?: DeliveryConfirmation;
+  commercialInvoice?: CommercialInvoiceDetails;
 }
 export interface OrderLog {
   id: string; orderId: string; orderCode: string; action: string; description: string;

@@ -2,7 +2,8 @@
 
 import { useMemo, useSyncExternalStore } from "react";
 import { subscribeCustomers, subscribeLogs, subscribeOrders } from "@/lib/repositories";
-import type { Customer, DeliveryConfirmation, Order, OrderLog, OrderStatus } from "@/types";
+import { saveLocalSnapshot } from "@/lib/local-data";
+import type { CommercialInvoiceDetails, Customer, DeliveryConfirmation, Order, OrderLog, OrderStatus } from "@/types";
 
 type Listener = () => void;
 type Stop = () => void;
@@ -78,6 +79,14 @@ export function updateCachedOrderDelivery(orderId: string, deliveryConfirmation:
     deliveryConfirmation,
     updatedAtClient: deliveryConfirmation.confirmedAtClient,
   } : order));
+}
+
+export function updateCachedCommercialInvoice(orderId: string, commercialInvoice: CommercialInvoiceDetails, updatedAtClient: string) {
+  ordersStore.updateValue(orders => {
+    const updated = orders.map(order => order.id === orderId ? { ...order, commercialInvoice, updatedAtClient } : order);
+    saveLocalSnapshot("orders", updated);
+    return updated;
+  });
 }
 
 export function useCustomers() {
