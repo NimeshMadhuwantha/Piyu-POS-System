@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Bold, FileDown, Italic, X } from "lucide-react";
 import { createCommercialInvoicePdf } from "@/lib/commercial-invoice";
 import type { BusinessSettings, Order } from "@/types";
@@ -8,6 +8,7 @@ import type { BusinessSettings, Order } from "@/types";
 export function CommercialInvoiceModal({ order, settings, onClose }: { order: Order; settings: BusinessSettings; onClose: () => void }) {
   const [countryAndZip, setCountryAndZip] = useState("");
   const [description, setDescription] = useState("");
+  const [descriptionHtml, setDescriptionHtml] = useState("");
   const [descriptionBold, setDescriptionBold] = useState(false);
   const [descriptionItalic, setDescriptionItalic] = useState(false);
   const [totalQuantity, setTotalQuantity] = useState(String(order.items.reduce((sum, item) => sum + item.quantity, 0)));
@@ -17,11 +18,24 @@ export function CommercialInvoiceModal({ order, settings, onClose }: { order: Or
   const [shippingCharges, setShippingCharges] = useState(order.deliveryCharge > 0 ? String(order.deliveryCharge) : "");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
+  const descriptionEditor = useRef<HTMLDivElement>(null);
+
+  function updateFormatState() {
+    setDescriptionBold(document.queryCommandState("bold"));
+    setDescriptionItalic(document.queryCommandState("italic"));
+  }
+
+  function toggleDescriptionFormat(command: "bold" | "italic") {
+    descriptionEditor.current?.focus();
+    document.execCommand(command);
+    updateFormatState();
+  }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     const quantity = Number(totalQuantity);
     const shipping = shippingCharges.trim() === "" ? 0 : Number(shippingCharges);
+    if (!description.trim()) { setError("Enter a description of goods."); return; }
     if (!Number.isInteger(quantity) || quantity <= 0) { setError("Total quantity must be a whole number greater than zero."); return; }
     if (!Number.isFinite(shipping) || shipping < 0) { setError("Enter a valid shipping charge."); return; }
     setCreating(true);
@@ -30,8 +44,9 @@ export function CommercialInvoiceModal({ order, settings, onClose }: { order: Or
       await createCommercialInvoicePdf(order, settings, {
         countryAndZip: countryAndZip.trim(),
         description: description.trim(),
-        descriptionBold,
-        descriptionItalic,
+        descriptionHtml,
+        descriptionBold: false,
+        descriptionItalic: false,
         totalQuantity: quantity,
         totalNetWeight: totalNetWeight.trim(),
         totalGrossWeight: totalGrossWeight.trim(),
@@ -56,10 +71,10 @@ export function CommercialInvoiceModal({ order, settings, onClose }: { order: Or
         <div className="field commercial-full">
           <span>Description of goods *</span>
           <div className="description-toolbar" aria-label="Description formatting">
-            <button type="button" className={descriptionBold ? "active" : ""} aria-pressed={descriptionBold} onClick={() => setDescriptionBold(value => !value)}><Bold size={16}/>Bold</button>
-            <button type="button" className={descriptionItalic ? "active" : ""} aria-pressed={descriptionItalic} onClick={() => setDescriptionItalic(value => !value)}><Italic size={16}/>Italic</button>
+            <button type="button" className={descriptionBold ? "active" : ""} aria-pressed={descriptionBold} onMouseDown={event => { event.preventDefault(); toggleDescriptionFormat("bold"); }}><Bold size={16}/>Bold</button>
+            <button type="button" className={descriptionItalic ? "active" : ""} aria-pressed={descriptionItalic} onMouseDown={event => { event.preventDefault(); toggleDescriptionFormat("italic"); }}><Italic size={16}/>Italic</button>
           </div>
-          <textarea required rows={4} value={description} style={{ fontWeight: descriptionBold ? 700 : 400, fontStyle: descriptionItalic ? "italic" : "normal" }} placeholder="Describe the goods included in this shipment" onChange={event => setDescription(event.target.value)}/>
+          <div ref={descriptionEditor} className="description-editor" contentEditable role="textbox" aria-multiline="true" data-placeholder="Describe the goods included in this shipment" suppressContentEditableWarning onInput={event => { setDescription(event.currentTarget.innerText); setDescriptionHtml(event.currentTarget.innerHTML); updateFormatState(); }} onKeyUp={updateFormatState} onMouseUp={updateFormatState}/>
         </div>
         <label className="field">Total quantity *<input required type="number" min="1" step="1" inputMode="numeric" value={totalQuantity} onChange={event => setTotalQuantity(event.target.value)}/></label>
         <label className="field">Total net weight *<input required value={totalNetWeight} placeholder="e.g. 8.50 kg" onChange={event => setTotalNetWeight(event.target.value)}/></label>

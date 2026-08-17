@@ -1,10 +1,12 @@
 import { format } from "date-fns";
 import { downloadBlob } from "@/lib/export";
 import type { BusinessSettings, Order } from "@/types";
+import type { jsPDF as JsPdf } from "jspdf";
 
 export interface CommercialInvoiceDetails {
   countryAndZip: string;
   description: string;
+  descriptionHtml?: string;
   descriptionBold: boolean;
   descriptionItalic: boolean;
   totalQuantity: number;
@@ -20,6 +22,70 @@ const INK: [number, number, number] = [32, 24, 29];
 const MUTED: [number, number, number] = [105, 91, 97];
 const LINE: [number, number, number] = [222, 195, 202];
 
+interface DescriptionRun { text: string; bold: boolean; italic: boolean }
+
+function descriptionRuns(details: CommercialInvoiceDetails): DescriptionRun[] {
+  if (!details.descriptionHtml || typeof DOMParser === "undefined") {
+    return [{ text: details.description, bold: details.descriptionBold, italic: details.descriptionItalic }];
+  }
+  const parsed = new DOMParser().parseFromString(details.descriptionHtml, "text/html");
+  const runs: DescriptionRun[] = [];
+  const add = (text: string, bold: boolean, italic: boolean) => {
+    if (!text) return;
+    const previous = runs.at(-1);
+    if (previous && previous.bold === bold && previous.italic === italic) previous.text += text;
+    else runs.push({ text, bold, italic });
+  };
+  const walk = (node: Node, bold = false, italic = false) => {
+    if (node.nodeType === 3) { add(node.textContent || "", bold, italic); return; }
+    if (node.nodeType !== 1) return;
+    const element = node as HTMLElement;
+    const tag = element.tagName.toLowerCase();
+    if (tag === "br") { add("\n", bold, italic); return; }
+    const block = tag === "div" || tag === "p";
+    if (block && runs.length && !runs.at(-1)?.text.endsWith("\n")) add("\n", bold, italic);
+    const weight = element.style.fontWeight;
+    const nextBold = bold || tag === "b" || tag === "strong" || weight === "bold" || Number(weight) >= 600;
+    const nextItalic = italic || tag === "i" || tag === "em" || element.style.fontStyle === "italic";
+    element.childNodes.forEach(child => walk(child, nextBold, nextItalic));
+    if (block && !runs.at(-1)?.text.endsWith("\n")) add("\n", nextBold, nextItalic);
+  };
+  parsed.body.childNodes.forEach(node => walk(node));
+  return runs.length ? runs : [{ text: details.description, bold: false, italic: false }];
+}
+
+function drawRichDescription(doc: JsPdf, runs: DescriptionRun[], x: number, y: number, maxWidth: number, maxLines = 4) {
+  const fontSize = 8;
+  const lineHeight = 3.5;
+  let cursorX = x;
+  let cursorY = y;
+  let line = 1;
+  let stopped = false;
+  const nextLine = () => {
+    line += 1;
+    if (line > maxLines) { stopped = true; return; }
+    cursorX = x;
+    cursorY += lineHeight;
+  };
+  for (const run of runs) {
+    const fontStyle = run.bold && run.italic ? "bolditalic" : run.bold ? "bold" : run.italic ? "italic" : "normal";
+    doc.setFont("helvetica", fontStyle);
+    doc.setFontSize(fontSize);
+    for (const token of run.text.replace(/\r/g, "").split(/(\n|\s+)/)) {
+      if (stopped || !token) continue;
+      if (token === "\n") { nextLine(); continue; }
+      const isSpace = /^\s+$/.test(token);
+      if (isSpace && cursorX === x) continue;
+      const width = doc.getTextWidth(token);
+      if (!isSpace && cursorX > x && cursorX + width > x + maxWidth) nextLine();
+      if (stopped) break;
+      if (!isSpace) doc.text(token, cursorX, cursorY);
+      cursorX += width;
+    }
+    if (stopped) break;
+  }
+}
+
 export async function createCommercialInvoicePdf(order: Order, settings: BusinessSettings, details: CommercialInvoiceDetails) {
   const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -31,7 +97,7 @@ export async function createCommercialInvoicePdf(order: Order, settings: Busines
   const money = (value: number) => value.toLocaleString("en-LK", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const goodsTotal = order.items.reduce((sum, item) => sum + Math.max(0, item.quantity) * Math.max(0, item.unitPrice), 0);
   const totalAmount = goodsTotal + details.shippingCharges;
-  const customerAddress = [order.customer.address1, order.customer.address2, order.customer.city, order.customer.district, details.countryAndZip].filter(value => value?.trim()).join(", ");
+  const customerAddress = [order.customer.address1, order.customer.address2, order.customer.city, order.customer.district].filter(value => value?.trim()).join(", ");
   const customerMobiles = [order.customer.mobile1, order.customer.mobile2].filter(value => value?.trim()).join(" / ");
 
   doc.setProperties({
@@ -106,21 +172,25 @@ export async function createCommercialInvoicePdf(order: Order, settings: Busines
 
   doc.setTextColor(...INK);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
+  doc.setFontSize(10);
   doc.text("PIYU PRODUCTS", margin + 4, partyY + 14);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.8);
-  doc.text(["103/B, Middeniya, Sri Lanka.", `Tel/WhatsApp: ${phone}`, `Email: ${email}`], margin + 4, partyY + 19, { lineHeightFactor: 1.5 });
+  doc.setFontSize(8.5);
+  doc.text(["103/B, Middeniya, Sri Lanka.", `Tel/WhatsApp: ${phone}`, `Email: ${email}`], margin + 4, partyY + 19, { lineHeightFactor: 1.45 });
 
   const shipX = margin + partyWidth + partyGap + 4;
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
+  doc.setFontSize(10);
   doc.text(order.customer.name, shipX, partyY + 14);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.5);
-  const shipLines = doc.splitTextToSize(customerAddress || "Address not provided", partyWidth - 8).slice(0, 3);
-  doc.text(shipLines, shipX, partyY + 19, { lineHeightFactor: 1.35 });
-  let shipInfoY = partyY + 19 + shipLines.length * 3.6;
+  doc.setFontSize(8.2);
+  const shipLines = doc.splitTextToSize(customerAddress || "Address not provided", partyWidth - 8).slice(0, 2);
+  doc.text(shipLines, shipX, partyY + 19, { lineHeightFactor: 1.3 });
+  let shipInfoY = partyY + 19 + shipLines.length * 3.8;
+  doc.setFont("helvetica", "bold");
+  doc.text(`Country / ZIP: ${details.countryAndZip}`, shipX, shipInfoY);
+  doc.setFont("helvetica", "normal");
+  shipInfoY += 4;
   if (customerMobiles) { doc.text(`Mobile: ${customerMobiles}`, shipX, shipInfoY); shipInfoY += 4; }
   if (order.customer.email) doc.text(`Email: ${order.customer.email}`, shipX, shipInfoY);
 
@@ -154,11 +224,7 @@ export async function createCommercialInvoicePdf(order: Order, settings: Busines
   doc.setDrawColor(...LINE);
   doc.roundedRect(margin, descriptionY + 3, contentWidth, 18, 1.5, 1.5, "FD");
   doc.setTextColor(...INK);
-  const descriptionFont = details.descriptionBold && details.descriptionItalic ? "bolditalic" : details.descriptionBold ? "bold" : details.descriptionItalic ? "italic" : "normal";
-  doc.setFont("helvetica", descriptionFont);
-  doc.setFontSize(8);
-  const descriptionLines = doc.splitTextToSize(details.description, contentWidth - 8).slice(0, 4);
-  doc.text(descriptionLines, margin + 4, descriptionY + 8, { lineHeightFactor: 1.3 });
+  drawRichDescription(doc, descriptionRuns(details), margin + 4, descriptionY + 8, contentWidth - 8);
 
   const summaryY = 164;
   const summaryItems = [
@@ -259,13 +325,15 @@ export async function createCommercialInvoicePdf(order: Order, settings: Busines
   doc.setFontSize(7.5);
   doc.text("I hereby certify that the above information is true and correct.", margin, certificationY);
   doc.setFont("helvetica", "normal");
+  doc.setTextColor(...MAROON);
+  doc.setFont("times", "bolditalic");
+  doc.setFontSize(11);
+  doc.text("PIYU PRODUCTS", pageWidth - margin - 27.5, certificationY + 5, { align: "center" });
   doc.setDrawColor(...MAROON);
-  doc.line(pageWidth - margin - 55, certificationY + 6, pageWidth - margin, certificationY + 6);
+  doc.line(pageWidth - margin - 55, certificationY + 7, pageWidth - margin, certificationY + 7);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
-  doc.text("Authorized Signature", pageWidth - margin - 27.5, certificationY + 11, { align: "center" });
-  doc.setTextColor(...MAROON);
-  doc.text("PIYU PRODUCTS", pageWidth - margin - 27.5, certificationY + 16, { align: "center" });
+  doc.text("Authorized Signature", pageWidth - margin - 27.5, certificationY + 12, { align: "center" });
 
   downloadBlob(`commercial-invoice-${order.orderCode}.pdf`, doc.output("blob"), "application/pdf");
 }
