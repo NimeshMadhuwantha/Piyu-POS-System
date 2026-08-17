@@ -123,6 +123,6 @@ export default function Reports() {
     {pdfError && <p className="report-error no-print" role="alert">{pdfError}</p>}
     {printError && <p className="report-error no-print" role="alert">{printError}</p>}
     <div className="report-stats">{stats.map(stat => <div className={`card report-stat ${stat.money ? "report-stat-money" : ""}`} key={stat.label}><small className="muted">{stat.label}</small>{stat.money ? <div className="report-money"><span>LKR</span><strong>{Number(stat.value).toLocaleString("en-LK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div> : <div className="report-stat-value">{stat.value}</div>}</div>)}</div>
-    <OrderList key={`${period}-${start}-${end}-${orderPrefix}-${orderSuffix}-${status}`} orders={data} showWeight/>
+    <OrderList key={`${period}-${start}-${end}-${orderPrefix}-${orderSuffix}-${status}`} orders={data} showWeight viewOnlyActions/>
   </main>;
 }

@@ -16,15 +16,15 @@ import { RECORD_PAGE_SIZE, ViewMore } from "./view-more";
 import { useApp } from "./providers";
 import { updateCachedOrderDelivery } from "@/hooks/use-data";
 
-function OrderActions({ order, printing, printOrder, openDelivery }: { order: Order; printing: boolean; printOrder: (order: Order) => void; openDelivery: (order: Order) => void }) {
+function OrderActions({ order, printing, printOrder, openDelivery, viewOnly = false }: { order: Order; printing: boolean; printOrder: (order: Order) => void; openDelivery: (order: Order) => void; viewOnly?: boolean }) {
   return <div className="order-actions no-print">
     <Link className="btn secondary" href={`/orders/${order.id}`}><Eye size={16}/>View bill</Link>
-    <button className="btn secondary" type="button" disabled={printing} aria-busy={printing} onClick={() => printOrder(order)}>{printing ? <>Creating<span className="print-loading-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></> : <><Printer size={16}/>Print bill</>}</button>
-    <button className="btn whatsapp" type="button" onClick={() => openDelivery(order)}><MessageCircle size={16}/>Send Invoice Delivered</button>
+    {!viewOnly && <><button className="btn secondary" type="button" disabled={printing} aria-busy={printing} onClick={() => printOrder(order)}>{printing ? <>Creating<span className="print-loading-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></> : <><Printer size={16}/>Print bill</>}</button>
+    <button className="btn whatsapp" type="button" onClick={() => openDelivery(order)}><MessageCircle size={16}/>Send Invoice Delivered</button></>}
   </div>;
 }
 
-export function OrderList({ orders, showWeight = false }: { orders: Order[]; showWeight?: boolean }) {
+export function OrderList({ orders, showWeight = false, viewOnlyActions = false }: { orders: Order[]; showWeight?: boolean; viewOnlyActions?: boolean }) {
   const { user } = useApp();
   const [visibleCount, setVisibleCount] = useState(RECORD_PAGE_SIZE);
   const [settings, setSettings] = useState<BusinessSettings>({ businessName: "Piyu POS", phone: "", address: "", receiptWidth: "80mm", footer: "Thank you!" });
@@ -87,9 +87,9 @@ export function OrderList({ orders, showWeight = false }: { orders: Order[]; sho
       <td>{order.customer.name}<div className="muted">{order.customer.mobile1}</div></td>
       <td>{formatLKR(order.grandTotal)}</td>{showWeight && <td>{orderTotalWeight(order).toLocaleString("en-LK", { maximumFractionDigits: 2 })} g</td>}<td>{order.shipping.method}</td>
       <td>{order.payment.method}</td><td><StatusBadge value={order.orderStatus}/></td>
-      <td>{order.pending ? <span className="sync-waiting">Saved locally</span> : "Synced"}</td><td className="no-print"><OrderActions order={order} printing={printingOrderId === order.id} printOrder={printOrder} openDelivery={openDelivery}/></td>
+      <td>{order.pending ? <span className="sync-waiting">Saved locally</span> : "Synced"}</td><td className="no-print"><OrderActions order={order} printing={printingOrderId === order.id} printOrder={printOrder} openDelivery={openDelivery} viewOnly={viewOnlyActions}/></td>
     </tr>)}</tbody></table></div>
-    <div className="mobile-cards">{visibleOrders.map(order => <article key={order.id} className="card"><div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><b>{order.orderCode}</b><StatusBadge value={order.orderStatus}/></div><h3 style={{ margin: "12px 0 3px" }}>{order.customer.name}</h3><div className="muted">{order.customer.mobile1}</div><div style={{ display: "flex", justifyContent: "space-between", marginTop: 14 }}><span>{format(new Date(order.createdAtClient), "dd MMM, h:mm a")}</span><b>{formatLKR(order.grandTotal)}</b></div>{showWeight && <div className="muted" style={{ marginTop: 7 }}>Total weight: <b>{orderTotalWeight(order).toLocaleString("en-LK", { maximumFractionDigits: 2 })} g</b></div>}{order.pending && <div className="sync-waiting" style={{ fontSize: 12, marginTop: 8 }}>Saved locally - waiting to sync</div>}<OrderActions order={order} printing={printingOrderId === order.id} printOrder={printOrder} openDelivery={openDelivery}/></article>)}</div>
+    <div className="mobile-cards">{visibleOrders.map(order => <article key={order.id} className="card"><div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><b>{order.orderCode}</b><StatusBadge value={order.orderStatus}/></div><h3 style={{ margin: "12px 0 3px" }}>{order.customer.name}</h3><div className="muted">{order.customer.mobile1}</div><div style={{ display: "flex", justifyContent: "space-between", marginTop: 14 }}><span>{format(new Date(order.createdAtClient), "dd MMM, h:mm a")}</span><b>{formatLKR(order.grandTotal)}</b></div>{showWeight && <div className="muted" style={{ marginTop: 7 }}>Total weight: <b>{orderTotalWeight(order).toLocaleString("en-LK", { maximumFractionDigits: 2 })} g</b></div>}{order.pending && <div className="sync-waiting" style={{ fontSize: 12, marginTop: 8 }}>Saved locally - waiting to sync</div>}<OrderActions order={order} printing={printingOrderId === order.id} printOrder={printOrder} openDelivery={openDelivery} viewOnly={viewOnlyActions}/></article>)}</div>
     <ViewMore shown={visibleOrders.length} total={orders.length} onMore={() => setVisibleCount(count => count + RECORD_PAGE_SIZE)}/>
     {printError && <p className="form-error no-print" role="alert">{printError}</p>}
     {deliveryError && !deliveryOrder && <p className="form-error no-print" role="alert">{deliveryError}</p>}
