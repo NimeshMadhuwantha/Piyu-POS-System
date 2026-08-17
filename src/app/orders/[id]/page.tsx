@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { flushSync } from "react-dom";
-import { AlertTriangle, Edit3, Printer, Trash2 } from "lucide-react";
+import { AlertTriangle, Edit3, FileText, Printer, Trash2 } from "lucide-react";
 import { updateCachedOrderStatus, useOrders } from "@/hooks/use-data";
 import { useApp } from "@/components/providers";
 import { deleteOrder, getBusinessSettings, updateOrderStatus } from "@/lib/repositories";
@@ -15,6 +15,7 @@ import { ReceiptPrintHost } from "@/components/receipt-print-host";
 import { primaryOrderStatus, type PrimaryOrderStatus } from "@/lib/order-status";
 import { clearPrintTarget, openPrintDialog, setPrintTarget, waitForPrintAssets } from "@/lib/printing";
 import type { BusinessSettings } from "@/types";
+import { CommercialInvoiceModal } from "@/components/commercial-invoice-modal";
 
 const statuses: PrimaryOrderStatus[] = ["Pending", "Delivered", "Canceled", "Returned"];
 
@@ -29,10 +30,12 @@ export default function OrderDetail() {
   const [statusChange, setStatusChange] = useState<{ orderId: string; previous: PrimaryOrderStatus; next: PrimaryOrderStatus } | null>(null);
   const [statusError, setStatusError] = useState("");
   const [settings, setSettings] = useState<BusinessSettings>({ businessName: "Piyu POS", phone: "", address: "", receiptWidth: "80mm", footer: "Thank you!" });
+  const [invoiceSettingsReady, setInvoiceSettingsReady] = useState(false);
   const [selectedReceiptType, setSelectedReceiptType] = useState<ReceiptType>("full");
   const [printingMode, setPrintingMode] = useState<ReceiptType | null>(null);
   const [printError, setPrintError] = useState("");
   const [printedAt, setPrintedAt] = useState("");
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
 
   const printReceipt = useCallback(async (receiptType: ReceiptType) => {
     setPrintTarget("receipt");
@@ -51,7 +54,7 @@ export default function OrderDetail() {
     }
   }, []);
 
-  useEffect(() => { getBusinessSettings().then(setSettings).catch(() => undefined); }, []);
+  useEffect(() => { getBusinessSettings().then(setSettings).catch(() => undefined).finally(() => setInvoiceSettingsReady(true)); }, []);
   useEffect(() => () => clearPrintTarget("receipt"), []);
 
   if (loading) return <div>Loading order...</div>;
@@ -83,10 +86,10 @@ export default function OrderDetail() {
 
   return <>
     <div className="no-print">
-      <div className="page-head"><div><h1>{order.orderCode}</h1><span className="muted">{order.pending ? "Saved locally - waiting to sync" : "Synced"}</span></div><div className="order-top-print"><button className="btn secondary" type="button" disabled={printingMode !== null} aria-busy={printingMode === "full"} onClick={() => printReceipt("full")}>{printingMode === "full" ? <>Creating<span className="print-loading-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></> : <><Printer size={17}/>Full bill</>}</button><button className="btn secondary" type="button" disabled={printingMode !== null} aria-busy={printingMode === "shipping"} onClick={() => printReceipt("shipping")}>{printingMode === "shipping" ? <>Creating<span className="print-loading-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></> : <><Printer size={17}/>Shipping details</>}</button><button className="btn secondary" type="button" disabled={printingMode !== null} aria-busy={printingMode === "customer"} onClick={() => printReceipt("customer")}>{printingMode === "customer" ? <>Creating<span className="print-loading-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></> : <><Printer size={17}/>Item list</>}</button></div></div>
+      <div className="page-head"><div><h1>{order.orderCode}</h1><span className="muted">{order.pending ? "Saved locally - waiting to sync" : "Synced"}</span></div><div className="order-top-print"><button className="btn secondary" type="button" disabled={printingMode !== null} aria-busy={printingMode === "full"} onClick={() => printReceipt("full")}>{printingMode === "full" ? <>Creating<span className="print-loading-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></> : <><Printer size={17}/>Full bill</>}</button><button className="btn secondary" type="button" disabled={printingMode !== null} aria-busy={printingMode === "shipping"} onClick={() => printReceipt("shipping")}>{printingMode === "shipping" ? <>Creating<span className="print-loading-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></> : <><Printer size={17}/>Shipping details</>}</button><button className="btn secondary" type="button" disabled={printingMode !== null} aria-busy={printingMode === "customer"} onClick={() => printReceipt("customer")}>{printingMode === "customer" ? <>Creating<span className="print-loading-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></> : <><Printer size={17}/>Item list</>}</button><button className="btn commercial-invoice-trigger" type="button" disabled={!invoiceSettingsReady} onClick={() => setInvoiceOpen(true)}><FileText size={17}/>{invoiceSettingsReady ? "Create Invoice" : "Loading Invoice…"}</button></div></div>
       {printError && <p className="form-error" role="alert">{printError}</p>}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14}}>
-        <section className="card"><h2 className="section-title">Customer details</h2><b>{order.customer.name}</b>{order.customer.email && <p>{order.customer.email}</p>}<p>{order.customer.mobile1}{order.customer.mobile2 && ` / ${order.customer.mobile2}`}</p><p>{[order.customer.address1,order.customer.address2,order.customer.city,order.customer.district].filter(Boolean).join(", ")}</p>{order.customer.note && <p className="muted">{order.customer.note}</p>}</section>
+        <section className="card"><h2 className="section-title">Customer details</h2><b>{order.customer.name}</b>{order.customer.email && <p>{order.customer.email}</p>}<p>{order.customer.mobile1}{order.customer.mobile2 && ` / ${order.customer.mobile2}`}</p>{order.customer.whatsappNumber && <p>WhatsApp: {order.customer.whatsappNumber}</p>}<p>{[order.customer.address1,order.customer.address2,order.customer.city,order.customer.district].filter(Boolean).join(", ")}</p>{order.customer.note && <p className="muted">{order.customer.note}</p>}</section>
         <section className="card"><h2 className="section-title">Delivery details</h2><p><b>{order.shipping.method}</b></p><p>Courier: {order.shipping.courier || "-"}<br/>Tracking: {order.shipping.trackingNumber || "-"}<br/>Total weight: {totalWeight > 0 ? `${totalWeight.toLocaleString("en-LK", { maximumFractionDigits: 2 })} g` : "-"}</p><p>Requested: {order.requestDate}<br/>Delivery: {order.deliveryDate || "Not set"}</p></section>
         <section className="card"><h2 className="section-title">Payment & status</h2><p><StatusBadge value={currentStatus}/></p><p>{order.payment.method}<br/>Payment: {order.paymentStatus}</p><p>Grand total: <b>{formatLKR(order.grandTotal)}</b><br/>Paid: {formatLKR(order.amountPaid)}<br/>Balance / COD: <b>{formatLKR(order.balance)}</b></p></section>
       </div>
@@ -96,6 +99,7 @@ export default function OrderDetail() {
       <div className="order-bottom-actions"><Link className="btn secondary" href={`/orders/${id}/edit`}><Edit3 size={17}/>Edit order</Link>{user?.role === "admin" && <button className="btn danger" onClick={() => setDeleteOpen(true)}><Trash2 size={17}/>Delete order</button>}</div>
     </div>
     {deleteOpen && <div className="modal-backdrop no-print" role="presentation" onMouseDown={() => setDeleteOpen(false)}><section className="card confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="delete-title" onMouseDown={event => event.stopPropagation()}><AlertTriangle size={38} color="#dc2626"/><h2 id="delete-title">Delete {order.orderCode}?</h2><p>This permanently removes the order from the order list and Firebase after synchronization. An audit log of the deletion will remain.</p><div style={{display:"flex",justifyContent:"flex-end",gap:8}}><button className="btn secondary" onClick={() => setDeleteOpen(false)}>Keep order</button><button className="btn danger" onClick={confirmDelete}>Yes, delete order</button></div></section></div>}
+    {invoiceOpen && <CommercialInvoiceModal order={order} settings={settings} onClose={() => setInvoiceOpen(false)}/>}
     <ReceiptPrintHost order={displayedOrder} type={selectedReceiptType} settings={settings} printedAt={printedAt}/>
   </>;
 }

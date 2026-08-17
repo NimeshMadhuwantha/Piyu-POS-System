@@ -8,27 +8,47 @@ import { useOrders } from "@/hooks/use-data";
 import { downloadBlob, ordersCsv, reportPdf } from "@/lib/export";
 import { OrderList } from "@/components/order-list";
 import { primaryOrderStatus } from "@/lib/order-status";
+import { ORDER_PREFIXES, ORDER_SUFFIXES, parseOrderCode } from "@/lib/order-code";
 import { clearPrintTarget, openPrintDialog, setPrintTarget } from "@/lib/printing";
+
+const REPORT_STATUSES = ["Pending", "Delivered", "Canceled", "Returned"] as const;
+
+function orderCodeParts(order: { orderCode: string; orderPrefix?: string; orderSuffix?: string }) {
+  const parsed = parseOrderCode(order.orderCode);
+  return {
+    prefix: (order.orderPrefix || parsed?.prefix || order.orderCode.match(/^[A-Za-z]+/)?.[0] || "").toUpperCase(),
+    suffix: (order.orderSuffix || parsed?.suffix || order.orderCode.match(/[A-Za-z]$/)?.[0] || "").toUpperCase(),
+  };
+}
 
 export default function Reports() {
   const { orders } = useOrders();
   const [period, setPeriod] = useState("This Month");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
+  const [orderPrefix, setOrderPrefix] = useState("All");
+  const [orderSuffix, setOrderSuffix] = useState("All");
+  const [status, setStatus] = useState("All");
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfError, setPdfError] = useState("");
   const [printBusy, setPrintBusy] = useState(false);
   const [printError, setPrintError] = useState("");
+  const [printGeneratedAt, setPrintGeneratedAt] = useState("");
   useEffect(() => () => clearPrintTarget("document"), []);
   const data = useMemo(() => orders.filter(order => {
     const date = new Date(order.createdAtClient);
-    if (period === "Today") return isToday(date);
-    if (period === "Yesterday") return isYesterday(date);
-    if (period === "This Week") return isThisWeek(date, { weekStartsOn: 1 });
-    if (period === "This Month") return isThisMonth(date);
-    if (period === "Custom") return (!start || date >= new Date(start)) && (!end || date <= new Date(`${end}T23:59:59`));
-    return true;
-  }), [orders, period, start, end]);
+    const matchesDate = period === "Today" ? isToday(date)
+      : period === "Yesterday" ? isYesterday(date)
+      : period === "This Week" ? isThisWeek(date, { weekStartsOn: 1 })
+      : period === "This Month" ? isThisMonth(date)
+      : period === "Custom" ? (!start || date >= new Date(start)) && (!end || date <= new Date(`${end}T23:59:59`))
+      : true;
+    const code = orderCodeParts(order);
+    return matchesDate
+      && (orderPrefix === "All" || code.prefix === orderPrefix)
+      && (orderSuffix === "All" || code.suffix === orderSuffix)
+      && (status === "All" || primaryOrderStatus(order.orderStatus) === status);
+  }), [orders, period, start, end, orderPrefix, orderSuffix, status]);
   const active = data.filter(order => !["Canceled", "Returned"].includes(primaryOrderStatus(order.orderStatus)));
   const reportPeriod = useMemo(() => {
     const now = new Date();
@@ -61,7 +81,7 @@ export default function Reports() {
     setPdfBusy(true);
     setPdfError("");
     try {
-      await reportPdf(data, `Piyu POS - ${reportPeriod.label}`, `${reportPeriod.filename}.pdf`);
+      await reportPdf(data, `Piyu POS - ${reportPeriod.label}`, `${reportPeriod.filename}.pdf`, status);
     } catch (error) {
       console.error("Unable to create report PDF", error);
       setPdfError("PDF could not be created. Please try again.");
@@ -75,17 +95,27 @@ export default function Reports() {
     flushSync(() => {
       setPrintError("");
       setPrintBusy(true);
+      setPrintGeneratedAt(new Date().toISOString());
     });
     const error = openPrintDialog();
     setPrintBusy(false);
     if (error) setPrintError(error);
   }
 
-  return <>
-    <div className="page-head"><div><h1>Reports</h1><span className="muted">Sales and order summary - {reportPeriod.label}</span></div></div>
+  return <main className="reports-page">
+    <div className="page-head report-screen-head"><div><h1>Reports</h1><span className="muted">Sales and order summary - {reportPeriod.label}</span></div></div>
+    <header className="report-print-header">
+      <h1>Piyu POS Report</h1>
+      <p><b>Reporting period:</b> {reportPeriod.label}</p>
+      <div><span><b>Date filter:</b> {period}</span><span><b>Order ID type:</b> {orderPrefix}</span><span><b>Order ID series:</b> {orderSuffix}</span><span><b>Status:</b> {status}</span></div>
+      <small>Generated: {printGeneratedAt ? format(new Date(printGeneratedAt), "dd MMMM yyyy, h:mm a") : ""}</small>
+    </header>
     <div className="card no-print report-filters">
       <label className="field">Date range<select value={period} onChange={event => setPeriod(event.target.value)}>{["Today", "Yesterday", "This Week", "This Month", "Custom", "All time"].map(value => <option key={value}>{value}</option>)}</select></label>
       {period === "Custom" && <><label className="field">From<input type="date" value={start} onChange={event => setStart(event.target.value)}/></label><label className="field">To<input type="date" value={end} onChange={event => setEnd(event.target.value)}/></label></>}
+      <label className="field">Order ID type<select value={orderPrefix} onChange={event => setOrderPrefix(event.target.value)}><option>All</option>{ORDER_PREFIXES.map(value => <option key={value}>{value}</option>)}</select></label>
+      <label className="field">Order ID series<select value={orderSuffix} onChange={event => setOrderSuffix(event.target.value)}><option>All</option>{ORDER_SUFFIXES.map(value => <option key={value}>{value}</option>)}</select></label>
+      <label className="field">Status<select value={status} onChange={event => setStatus(event.target.value)}><option>All</option>{REPORT_STATUSES.map(value => <option key={value}>{value}</option>)}</select></label>
       <button className="btn secondary" type="button" disabled={pdfBusy} onClick={createPdf}><FileText size={17}/>{pdfBusy ? "Creating…" : "PDF"}</button>
       <button className="btn secondary" onClick={() => downloadBlob(`${reportPeriod.filename}.csv`, ordersCsv(data), "text/csv")}><Download size={17}/>CSV</button>
       <button className="btn" type="button" disabled={printBusy} aria-busy={printBusy} onClick={printReport}>{printBusy ? <>Creating<span className="print-loading-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></> : <><Printer size={17}/>Print report</>}</button>
@@ -93,6 +123,6 @@ export default function Reports() {
     {pdfError && <p className="report-error no-print" role="alert">{pdfError}</p>}
     {printError && <p className="report-error no-print" role="alert">{printError}</p>}
     <div className="report-stats">{stats.map(stat => <div className={`card report-stat ${stat.money ? "report-stat-money" : ""}`} key={stat.label}><small className="muted">{stat.label}</small>{stat.money ? <div className="report-money"><span>LKR</span><strong>{Number(stat.value).toLocaleString("en-LK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div> : <div className="report-stat-value">{stat.value}</div>}</div>)}</div>
-    <OrderList key={`${period}-${start}-${end}`} orders={data} showWeight/>
-  </>;
+    <OrderList key={`${period}-${start}-${end}-${orderPrefix}-${orderSuffix}-${status}`} orders={data} showWeight viewOnlyActions/>
+  </main>;
 }

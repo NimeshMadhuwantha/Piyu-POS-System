@@ -68,7 +68,7 @@ export function deliveredInvoiceMessage(order: Order, delivery: DeliveryConfirma
 }
 
 export function openWhatsAppDeliveredInvoice(order: Order, delivery: DeliveryConfirmation) {
-  const number = whatsappNumber(order.customer.mobile2 || order.customer.mobile1);
+  const number = whatsappNumber(order.customer.whatsappNumber || order.customer.mobile2 || order.customer.mobile1);
   const url = `https://wa.me/${number}?text=${encodeURIComponent(deliveredInvoiceMessage(order, delivery))}`;
   window.open(url, "_blank", "noopener,noreferrer");
 }
