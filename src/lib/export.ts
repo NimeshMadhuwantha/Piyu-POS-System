@@ -8,7 +8,7 @@ const esc = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""')}"`
 export function ordersCsv(orders: Order[]) {
   const itemValues = (order: Order, value: (item: Order["items"][number]) => unknown) => order.items.map(item => String(value(item) ?? "")).join(" | ");
   const rows = [[
-    "No", "Created date/time", "Updated date/time", "Order ID", "Internal record ID", "Customer ID", "Customer name", "Email", "Primary mobile", "Secondary mobile",
+    "No", "Created date/time", "Updated date/time", "Order ID", "Internal record ID", "Customer ID", "Customer name", "Email", "Primary mobile", "Secondary mobile", "WhatsApp number",
     "Address line 1", "Address line 2", "City", "District", "Customer note", "Item names", "Item categories", "Quantities", "Units",
     "Unit weights (g)", "Line weights (g)", "Unit prices (LKR)", "Item discounts (%)", "Line totals (LKR)", "Total item quantity", "Total weight (g)",
     "Shipping method", "Courier / company", "Tracking number", "Confirmed parcel weight (g)", "Delivery value (LKR)", "Deliver paid", "Delivery confirmed at", "Shipping note", "Request date", "Delivery date", "Payment method", "Payment status",
@@ -16,7 +16,7 @@ export function ordersCsv(orders: Order[]) {
     "Order status", "Order notes", "Created by", "Created by user ID", "Updated by user ID", "Sync status",
   ], ...orders.map((order, index) => [
     index + 1, order.createdAtClient, order.updatedAtClient, order.orderCode, order.id, order.customerId || "", order.customer.name, order.customer.email || "",
-    order.customer.mobile1, order.customer.mobile2 || "", order.customer.address1, order.customer.address2 || "", order.customer.city || "", order.customer.district || "",
+    order.customer.mobile1, order.customer.mobile2 || "", order.customer.whatsappNumber || "", order.customer.address1, order.customer.address2 || "", order.customer.city || "", order.customer.district || "",
     order.customer.note || "", itemValues(order, item => item.name), itemValues(order, item => item.variant || ""), itemValues(order, item => item.quantity),
     itemValues(order, item => item.unit), itemValues(order, item => item.weight || 0), itemValues(order, item => calculateLineWeight(item.weight, item.quantity)),
     itemValues(order, item => item.unitPrice), itemValues(order, item => item.discount), itemValues(order, item => item.subtotal),

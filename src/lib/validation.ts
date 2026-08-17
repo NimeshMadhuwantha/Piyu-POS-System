@@ -15,7 +15,7 @@ export const orderFormSchema = z.object({
   }),
   customer: z.object({
     name: z.string().trim().min(1, "Customer name is required"), email: z.union([z.literal(""), z.string().trim().email("Enter a valid email")]).optional(), mobile1: z.string().trim().min(7, "Primary mobile is required"),
-    mobile2: z.string().optional(), address1: z.string().trim().min(1, "Address is required"), address2: z.string().optional(),
+    mobile2: z.string().optional(), whatsappNumber: z.string().optional(), address1: z.string().trim().min(1, "Address is required"), address2: z.string().optional(),
     city: z.string().optional(), district: z.string().optional(), note: z.string().optional(),
   }),
   items: z.array(orderItemSchema).min(1, "Add at least one item"),

@@ -4,7 +4,7 @@ export type ShippingMethod = string;
 export type PaymentMethod = "Cash on Delivery (COD)" | "Cash" | "Bank Transfer" | "Online Payment" | "Other";
 
 export interface CustomerSnapshot {
-  name: string; email?: string; mobile1: string; mobile2?: string; address1: string; address2?: string;
+  name: string; email?: string; mobile1: string; mobile2?: string; whatsappNumber?: string; address1: string; address2?: string;
   city?: string; district?: string; note?: string;
 }
 export interface Customer extends CustomerSnapshot {
