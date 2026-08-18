@@ -326,7 +326,7 @@ export function saveBusinessSettings(settings: BusinessSettings) {
   queueCommit(setDoc(doc(db, "settings", "business"), normalized));
 }
 
-type ClearDataMode = { type: "logs" } | { type: "year"; year: number } | { type: "all" };
+type ClearDataMode = { type: "logs" } | { type: "month"; year: number; month: number } | { type: "all" };
 
 async function deleteDocuments(refs: Array<ReturnType<typeof doc>>) {
   for (let start = 0; start < refs.length; start += 400) {
@@ -356,9 +356,10 @@ async function removeOrphanCustomers() {
 export async function clearBusinessData(mode: ClearDataMode) {
   let orderSnapshot;
   let logSnapshot;
-  if (mode.type === "year") {
-    const start = `${mode.year}-01-01T00:00:00.000Z`;
-    const end = `${mode.year + 1}-01-01T00:00:00.000Z`;
+  if (mode.type === "month") {
+    if (!Number.isInteger(mode.year) || !Number.isInteger(mode.month) || mode.month < 1 || mode.month > 12) throw new Error("Select a valid month and year.");
+    const start = new Date(Date.UTC(mode.year, mode.month - 1, 1)).toISOString();
+    const end = new Date(Date.UTC(mode.year, mode.month, 1)).toISOString();
     [orderSnapshot, logSnapshot] = await Promise.all([
       getDocs(query(collection(db, "orders"), where("createdAtClient", ">=", start), where("createdAtClient", "<", end))),
       getDocs(query(collection(db, "orderLogs"), where("clientTimestamp", ">=", start), where("clientTimestamp", "<", end))),
@@ -381,6 +382,6 @@ export async function clearBusinessData(mode: ClearDataMode) {
     const customersSnapshot = await getDocs(collection(db, "customers"));
     customers = customersSnapshot.size;
     await deleteDocuments(customersSnapshot.docs.map(item => item.ref));
-  } else if (mode.type === "year") customers = await removeOrphanCustomers();
+  } else if (mode.type === "month") customers = await removeOrphanCustomers();
   return { orders: orderRefs.length, logs: logRefs.length, customers };
 }
