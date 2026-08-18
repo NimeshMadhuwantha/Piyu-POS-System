@@ -33,6 +33,11 @@ describe("delivered WhatsApp invoice", () => {
     expect(deliveredInvoiceMessage(order, { ...delivery, deliveryPaid: false })).not.toContain("Deliver Paid");
   });
 
+  it("omits the tracking line when no tracking number was entered", () => {
+    const message = deliveredInvoiceMessage(order, { ...delivery, trackingNumber: "" });
+    expect(message).not.toContain("Tracking number:");
+  });
+
   it("sends the delivered invoice to the dedicated WhatsApp number", () => {
     const open = vi.fn();
     vi.stubGlobal("window", { open });
