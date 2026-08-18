@@ -56,7 +56,7 @@ export function deliveredInvoiceMessage(order: Order, delivery: DeliveryConfirma
     "Item list",
     items,
     "",
-    `Tracking number: ${delivery.trackingNumber}`,
+    delivery.trackingNumber ? `Tracking number: ${delivery.trackingNumber}` : "",
     `Weight: ${delivery.parcelWeight.toLocaleString("en-LK", { maximumFractionDigits: 2 })} g`,
     `Value: ${formatLKR(delivery.value)}`,
     delivery.deliveryPaid ? "Deliver Paid" : "",

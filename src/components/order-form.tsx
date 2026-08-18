@@ -117,6 +117,6 @@ export function OrderForm({ existing }: { existing?: Order }) {
       </div>
     </section>
 
-    <section className="card order-totals"><div className="order-totals-content"><span>Subtotal <b>{formatLKR(totals.itemsSubtotal)}</b></span><span>Shipping <b>{formatLKR(deliveryCharge)}</b></span><span>Grand total <b className="order-grand-total">{formatLKR(totals.grandTotal)}</b></span><span>{values.payment?.method === "Cash on Delivery (COD)" ? "COD" : "Balance"} <b>{formatLKR(totals.balance)}</b></span><button className="btn" disabled={isSubmitting || duplicateOrderNumber}><Save size={18}/>{isSubmitting ? "Saving…" : existing ? "Update order" : "Save order"}</button></div>{submitError && <p className="form-error order-error">{submitError}</p>}</section>
+    <section className="card order-totals"><div className="order-totals-content"><span>Subtotal <b>{formatLKR(totals.itemsSubtotal)}</b></span><span>Shipping <b>{formatLKR(deliveryCharge)}</b></span><span>Grand total <b className="order-grand-total">{formatLKR(totals.grandTotal)}</b></span><span>Net weight <b>{totalWeight.toLocaleString("en-LK", { maximumFractionDigits: 2 })} g</b></span><button className="btn" disabled={isSubmitting || duplicateOrderNumber}><Save size={18}/>{isSubmitting ? "Saving…" : existing ? "Update order" : "Save order"}</button></div>{submitError && <p className="form-error order-error">{submitError}</p>}</section>
   </form>;
 }

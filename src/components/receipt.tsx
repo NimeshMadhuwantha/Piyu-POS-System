@@ -53,7 +53,7 @@ function FullBill({ order, address, totalWeight }: { order: Order; address: stri
         const lineWeight = calculateLineWeight(item.weight, item.quantity);
         return <tr key={item.id}>
           <td>{index + 1}</td>
-          <td>{item.name}{hasText(item.variant) && ` (${item.variant})`} x {item.quantity}</td>
+          <td>{item.name} x {item.quantity}</td>
           <td>{lineWeight > 0 ? formatWeight(lineWeight) : ""}</td>
           <td>{formatAmount(item.subtotal)}</td>
         </tr>;
