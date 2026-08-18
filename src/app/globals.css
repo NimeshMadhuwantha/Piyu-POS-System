@@ -39,3 +39,4 @@ html,body{max-width:100%;overflow-x:hidden}button,input,select,textarea{max-widt
 .item-list-client>strong{font-size:11px}.item-list-client>span{font-size:9px}.item-list-boxes>span{font-size:9px}.item-list-boxes i{width:42px;height:17px}
 .item-list-client>strong{font-size:13px;line-height:1.2}.item-list-client>span{font-size:11px;line-height:1.25}.item-list-boxes>span{font-size:11px}.item-list-boxes i{width:56px;height:22px}
 .item-list-client>time{font-size:11px;line-height:1.25}
+.receipt-items th:nth-child(2),.receipt-items td:nth-child(2){width:46%}.receipt-items th:nth-child(3),.receipt-items td:nth-child(3){width:16%}
