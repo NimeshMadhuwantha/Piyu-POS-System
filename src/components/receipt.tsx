@@ -82,7 +82,7 @@ function FullBill({ order, address, totalWeight }: { order: Order; address: stri
 }
 
 function ItemList({ order, printedAt }: { order: Order; printedAt?: string }) {
-  const shortName = order.customer.name.trim().split(/\s+/).filter(Boolean).slice(0, 2).join(" ");
+  const shortName = order.customer.name.trim().split(/\s+/).filter(Boolean).slice(0, 4).join(" ");
   const shortAddress = [order.customer.address1, order.customer.address2, order.customer.city]
     .filter(hasText)
     .join(" ")
@@ -94,7 +94,7 @@ function ItemList({ order, printedAt }: { order: Order; printedAt?: string }) {
   const addressLine = [shortAddress, order.customer.district].filter(hasText).join(", ");
   const printTime = printedAt ? new Date(printedAt) : new Date(order.createdAtClient);
   return <>
-    <div className="item-list-meta"><div className="item-list-client"><b>{order.orderCode}</b><strong>{shortName}</strong>{addressLine && <span>{addressLine}</span>}<time>Printed: {format(printTime, "dd/MM/yyyy HH:mm")}</time></div><div className="item-list-boxes"><span><b>Delivery Date :</b><i/></span><span><b>Weight :</b><i/></span></div></div>
+    <div className="item-list-meta"><div className="item-list-client"><b>{order.orderCode}</b><strong>{shortName}</strong>{addressLine && <span>{addressLine}</span>}<time>Printed: {format(printTime, "dd/MM/yyyy HH:mm")}</time></div><div className="item-list-boxes"><span><b>Delivery Date :</b><i/></span><span><b>Weight :</b><i className="item-list-weight-box"><small>g</small></i></span></div></div>
     <table className="receipt-item-list">
       <thead><tr><th>No.</th><th>Item</th><th>Unit weight</th><th>Qty</th></tr></thead>
       <tbody>{order.items.map((item, index) => {
