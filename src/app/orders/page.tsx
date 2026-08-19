@@ -9,7 +9,7 @@ import { CapacityWarning } from "@/components/capacity-warning";
 import { MAX_COLLECTION_RECORDS } from "@/lib/repositories";
 import { primaryOrderStatus, type PrimaryOrderStatus } from "@/lib/order-status";
 
-const statuses: Array<"All" | PrimaryOrderStatus> = ["All", "Pending", "Delivered", "Canceled", "Returned"];
+const statuses: Array<"All" | PrimaryOrderStatus> = ["All", "Pending", "Processing", "Delivered", "Canceled", "Returned"];
 
 export default function Orders() {
   const { orders } = useOrders();

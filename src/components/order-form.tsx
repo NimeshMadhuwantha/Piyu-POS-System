@@ -108,7 +108,7 @@ export function OrderForm({ existing }: { existing?: Order }) {
         <label className="field payment-method-field">Payment method<select {...register("payment.method")}><option>Cash on Delivery (COD)</option><option>Cash</option><option>Bank Transfer</option><option>Online Payment</option><option>Other</option></select></label>
         <label className="field">Shipping method (optional)<select value={values.shipping?.methodId || ""} onChange={event => chooseShipping(event.target.value)}><option value="">No shipping method</option>{shippingOptions.map(option => <option key={option.id} value={option.id}>{option.name}{option.courier ? ` - ${option.courier}` : ""}</option>)}{existing && values.shipping?.method && !values.shipping.methodId && <option value="" disabled>Saved: {values.shipping.method}</option>}</select></label>
         {!isCashOnDelivery && <label className="field">Shipping cost (LKR)<input className="number-clean" type="number" inputMode="decimal" min="0" step="0.01" {...register("deliveryCharge", { setValueAs: value => value === "" ? 0 : Number(value) })}/></label>}
-        <label className="field">Request date *<input type="date" {...register("requestDate")}/></label>
+        <label className="field">Request date<input type="date" {...register("requestDate")}/></label>
         <label className="field">Delivery date<input type="date" {...register("deliveryDate")}/></label>
         <label className="field">Tracking number<input {...register("shipping.trackingNumber")}/></label>
         <label className="field">Amount paid<input className="number-clean" type="number" inputMode="decimal" min="0" step="any" {...register("amountPaid", { valueAsNumber: true })}/></label>

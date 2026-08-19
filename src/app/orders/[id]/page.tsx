@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
 import { AlertTriangle, Edit3, FileText, Printer, Trash2 } from "lucide-react";
 import { updateCachedOrderStatus, useOrders } from "@/hooks/use-data";
@@ -17,7 +17,7 @@ import { clearPrintTarget, openPrintDialog, setPrintTarget, waitForPrintAssets }
 import type { BusinessSettings } from "@/types";
 import { CommercialInvoiceModal } from "@/components/commercial-invoice-modal";
 
-const statuses: PrimaryOrderStatus[] = ["Pending", "Delivered", "Canceled", "Returned"];
+const statuses: PrimaryOrderStatus[] = ["Pending", "Processing", "Delivered", "Canceled", "Returned"];
 
 export default function OrderDetail() {
   const { id } = useParams<{ id: string }>();
@@ -37,7 +37,16 @@ export default function OrderDetail() {
   const [printedAt, setPrintedAt] = useState("");
   const [invoiceOpen, setInvoiceOpen] = useState(false);
 
-  const printReceipt = useCallback(async (receiptType: ReceiptType) => {
+  async function printReceipt(receiptType: ReceiptType) {
+    if (receiptType === "customer" && order && user && primaryOrderStatus(order.orderStatus) === "Pending") {
+      const previousStatus = order.orderStatus;
+      setStatusError("");
+      updateCachedOrderStatus(order.id, "Processing");
+      void updateOrderStatus(order, "Processing", user).catch(error => {
+        updateCachedOrderStatus(order.id, previousStatus);
+        setStatusError(error instanceof Error ? `Processing status could not be saved to Firebase: ${error.message}` : "Processing status could not be saved to Firebase.");
+      });
+    }
     setPrintTarget("receipt");
     flushSync(() => {
       setPrintError("");
@@ -52,7 +61,7 @@ export default function OrderDetail() {
       clearPrintTarget("receipt");
       setPrintError(error);
     }
-  }, []);
+  }
 
   useEffect(() => { getBusinessSettings().then(setSettings).catch(() => undefined).finally(() => setInvoiceSettingsReady(true)); }, []);
   useEffect(() => () => clearPrintTarget("receipt"), []);

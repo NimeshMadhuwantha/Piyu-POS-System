@@ -22,6 +22,6 @@ export const orderFormSchema = z.object({
   shipping: z.object({ method: z.string().trim(), methodId: z.string().optional(), courier: z.string().optional(), trackingNumber: z.string().optional(), parcelWeight: nonNegativeNumber.optional(), note: z.string().optional() }),
   payment: z.object({ method: z.enum(["Cash on Delivery (COD)", "Cash", "Bank Transfer", "Online Payment", "Other"]), status: z.enum(["Pending", "Paid", "Partially Paid"]) }),
   orderDiscount: nonNegativeNumber, deliveryCharge: nonNegativeNumber, amountPaid: nonNegativeNumber,
-  notes: z.string().optional(), requestDate: z.string().min(1, "Request date is required"), deliveryDate: z.string().optional(),
+  notes: z.string().optional(), requestDate: z.string(), deliveryDate: z.string().optional(),
 });
 export type OrderFormValues = z.infer<typeof orderFormSchema>;

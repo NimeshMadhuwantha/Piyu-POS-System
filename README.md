@@ -9,7 +9,7 @@ Offline-first point-of-sale and order management for a Windows laptop and Androi
 - Request Date and Delivery Date on every order
 - Realtime orders and customers on all signed-in devices
 - Firestore persistent IndexedDB cache plus an app-owned IndexedDB snapshot mirror, offline writes, pending-sync indicators, and multi-tab support
-- Four clear order states: Pending, Delivered, Canceled, and Returned (older status values are mapped safely)
+- Five clear order states: Pending, Processing, Delivered, Canceled, and Returned (older status values are mapped safely)
 - Append-only audit logs for order creation, editing, and status changes
 - Customer directory and order history based on immutable customer snapshots in orders
 - Dashboard, search/filterable orders, logs, reports, settings, CSV/JSON export, and client-side PDF report

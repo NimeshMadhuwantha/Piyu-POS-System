@@ -11,7 +11,7 @@ import { primaryOrderStatus } from "@/lib/order-status";
 import { ORDER_PREFIXES, ORDER_SUFFIXES, parseOrderCode } from "@/lib/order-code";
 import { clearPrintTarget, openPrintDialog, setPrintTarget } from "@/lib/printing";
 
-const REPORT_STATUSES = ["Pending", "Delivered", "Canceled", "Returned"] as const;
+const REPORT_STATUSES = ["Pending", "Processing", "Delivered", "Canceled", "Returned"] as const;
 
 function orderCodeParts(order: { orderCode: string; orderPrefix?: string; orderSuffix?: string }) {
   const parsed = parseOrderCode(order.orderCode);
@@ -70,6 +70,7 @@ export default function Reports() {
     { label: "Total sales", value: active.reduce((sum, order) => sum + order.grandTotal, 0), money: true },
     { label: "Delivered", value: data.filter(order => primaryOrderStatus(order.orderStatus) === "Delivered").length },
     { label: "Pending", value: data.filter(order => primaryOrderStatus(order.orderStatus) === "Pending").length },
+    { label: "Processing", value: data.filter(order => primaryOrderStatus(order.orderStatus) === "Processing").length },
     { label: "Canceled", value: data.filter(order => primaryOrderStatus(order.orderStatus) === "Canceled").length },
     { label: "Returned", value: data.filter(order => primaryOrderStatus(order.orderStatus) === "Returned").length },
     { label: "COD orders", value: data.filter(order => order.payment.method === "Cash on Delivery (COD)").length },

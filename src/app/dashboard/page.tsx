@@ -4,18 +4,20 @@ import Link from "next/link";
 import { format, isToday } from "date-fns";
 import { useCallback, useEffect, useState } from "react";
 import { flushSync } from "react-dom";
-import { useOrders } from "@/hooks/use-data";
+import { updateCachedOrderStatus, useOrders } from "@/hooks/use-data";
 import { formatLKR } from "@/lib/calculations";
 import { StatusBadge } from "@/components/status-badge";
 import { primaryOrderStatus } from "@/lib/order-status";
 import { Printer } from "lucide-react";
 import { ReceiptPrintHost } from "@/components/receipt-print-host";
-import { getBusinessSettings } from "@/lib/repositories";
+import { getBusinessSettings, updateOrderStatus } from "@/lib/repositories";
 import { clearPrintTarget, openPrintDialog, setPrintTarget } from "@/lib/printing";
 import type { BusinessSettings, Order } from "@/types";
+import { useApp } from "@/components/providers";
 
 export default function Dashboard() {
   const { orders, loading } = useOrders();
+  const { user } = useApp();
   const [settings, setSettings] = useState<BusinessSettings>({ businessName: "Piyu POS", phone: "", address: "", receiptWidth: "80mm", footer: "Thank you!" });
   const [printingOrderId, setPrintingOrderId] = useState<string | null>(null);
   const [printError, setPrintError] = useState("");
@@ -24,6 +26,14 @@ export default function Dashboard() {
   useEffect(() => { getBusinessSettings().then(setSettings).catch(() => undefined); }, []);
   useEffect(() => () => clearPrintTarget("receipt"), []);
   const printItemList = useCallback((order: Order) => {
+    if (user && primaryOrderStatus(order.orderStatus) === "Pending") {
+      const previousStatus = order.orderStatus;
+      updateCachedOrderStatus(order.id, "Processing");
+      void updateOrderStatus(order, "Processing", user).catch(error => {
+        updateCachedOrderStatus(order.id, previousStatus);
+        setPrintError(error instanceof Error ? `Processing status could not be saved to Firebase: ${error.message}` : "Processing status could not be saved to Firebase.");
+      });
+    }
     setPrintTarget("receipt");
     flushSync(() => {
       setPrintError("");
@@ -37,12 +47,13 @@ export default function Dashboard() {
       clearPrintTarget("receipt");
       setPrintError(error);
     }
-  }, []);
+  }, [user]);
   const today = orders.filter(order => isToday(new Date(order.createdAtClient)));
   const stats = [
     { label: "Today's Orders", value: today.length },
     { label: "Today's Sales", value: formatLKR(today.filter(order => !["Canceled", "Returned"].includes(primaryOrderStatus(order.orderStatus))).reduce((sum, order) => sum + order.grandTotal, 0)), money: true },
     { label: "Pending", value: orders.filter(order => primaryOrderStatus(order.orderStatus) === "Pending").length },
+    { label: "Processing", value: orders.filter(order => primaryOrderStatus(order.orderStatus) === "Processing").length },
     { label: "Delivered", value: orders.filter(order => primaryOrderStatus(order.orderStatus) === "Delivered").length },
     { label: "Canceled", value: orders.filter(order => primaryOrderStatus(order.orderStatus) === "Canceled").length },
     { label: "Returned", value: orders.filter(order => primaryOrderStatus(order.orderStatus) === "Returned").length },
