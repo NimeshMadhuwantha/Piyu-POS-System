@@ -51,7 +51,7 @@ export default function Dashboard() {
   const today = orders.filter(order => isToday(new Date(order.createdAtClient)));
   const stats = [
     { label: "Today's Orders", value: today.length },
-    { label: "Today's Sales", value: formatLKR(today.filter(order => !["Canceled", "Returned"].includes(primaryOrderStatus(order.orderStatus))).reduce((sum, order) => sum + order.grandTotal, 0)), money: true },
+    { label: "Today's Sales (LKR)", value: today.filter(order => !["Canceled", "Returned"].includes(primaryOrderStatus(order.orderStatus))).reduce((sum, order) => sum + order.grandTotal, 0).toLocaleString("en-LK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), money: true },
     { label: "Pending", value: orders.filter(order => primaryOrderStatus(order.orderStatus) === "Pending").length },
     { label: "Processing", value: orders.filter(order => primaryOrderStatus(order.orderStatus) === "Processing").length },
     { label: "Delivered", value: orders.filter(order => primaryOrderStatus(order.orderStatus) === "Delivered").length },
