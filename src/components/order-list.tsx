@@ -58,8 +58,10 @@ export function OrderList({ orders, showWeight = false, viewOnlyActions = false 
     setDeliveryOrder(order);
     setDeliveryForm({
       trackingNumber: order.deliveryConfirmation?.trackingNumber || order.shipping.trackingNumber || "",
-      parcelWeight: "",
-      value: order.deliveryCharge > 0 ? String(order.deliveryCharge) : "",
+      parcelWeight: order.deliveryConfirmation ? String(order.deliveryConfirmation.parcelWeight) : "",
+      value: order.deliveryConfirmation
+        ? String(order.deliveryConfirmation.value)
+        : order.deliveryCharge > 0 ? String(order.deliveryCharge) : "",
       deliveryPaid: order.deliveryConfirmation?.deliveryPaid || false,
     });
   }
