@@ -23,7 +23,8 @@ describe("delivered WhatsApp invoice", () => {
     const message = deliveredInvoiceMessage(order, delivery);
     expect(message).toContain("ආයුබෝවන්");
     expect(message).toContain("0711111111 / 0777777777");
-    expect(message).toContain("Rice (Large) x 2");
+    expect(message).toContain("1. Rice x 2");
+    expect(message).not.toContain("Rice (Large)");
     expect(message).toContain("Tracking number: TRACK-123");
     expect(message).toContain("Weight: 1,250 g");
     expect(message).toContain("Deliver Paid");
