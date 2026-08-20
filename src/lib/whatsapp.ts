@@ -46,7 +46,7 @@ export function openWhatsAppInvoice(order: Order) {
 export function deliveredInvoiceMessage(order: Order, delivery: DeliveryConfirmation) {
   const date = format(new Date(delivery.confirmedAtClient), "dd/MM/yyyy");
   const mobiles = [order.customer.mobile1, order.customer.mobile2].filter(Boolean).join(" / ");
-  const items = order.items.map((item, index) => `${index + 1}. ${item.name}${item.variant ? ` (${item.variant})` : ""} x ${item.quantity}`).join("\n");
+  const items = order.items.map((item, index) => `${index + 1}. ${item.name} x ${item.quantity}`).join("\n");
   return [
     "ආයුබෝවන්...",
     "",
