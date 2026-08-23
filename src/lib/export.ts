@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import { primaryOrderStatus } from "@/lib/order-status";
 import { calculateLineWeight, orderTotalWeight } from "@/lib/calculations";
+import { reportTrackingNumber } from "@/lib/report-values";
 import type { Order } from "@/types";
 
 const esc = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""')}"`;
@@ -40,7 +41,7 @@ export function downloadBlob(name: string, content: BlobPart, type: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export async function reportPdf(orders: Order[], title = "Piyu POS Report", filename = `piyu-pos-${format(new Date(), "yyyy-MM-dd")}.pdf`, filteredStatus = "All") {
+export async function reportPdf(orders: Order[], title = "Piyu POS Report", filename = `piyu-pos-${format(new Date(), "yyyy-MM-dd")}.pdf`, filteredStatus = "All", dateByOrderId?: Record<string, string | null>) {
   const { default: jsPDF } = await import("jspdf");
   const doc = new jsPDF({ orientation: "portrait", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -50,7 +51,7 @@ export async function reportPdf(orders: Order[], title = "Piyu POS Report", file
     { label: "No", x: 14, width: 9, right: true }, { label: "Date", x: 23, width: 17 },
     { label: "Order", x: 40, width: 22 }, { label: "Customer", x: 62, width: 29 },
     { label: "Mobile 1", x: 91, width: 22 }, { label: "Mobile 2", x: 113, width: 22 },
-    { label: "Weight (g)", x: 135, width: 18, right: true }, { label: "Shipping (LKR)", x: 153, width: 21, right: true },
+    { label: "Weight (g)", x: 135, width: 18, right: true }, { label: "Tracking Number", x: 153, width: 21 },
     { label: "Value (LKR)", x: 174, width: 22, right: true },
   ];
   const clean = (value: unknown) => String(value ?? "").replace(/[^\x20-\x7E]/g, " ");
@@ -84,13 +85,13 @@ export async function reportPdf(orders: Order[], title = "Piyu POS Report", file
     if (index % 2 === 1) { doc.setFillColor(248, 250, 252); doc.rect(margin, y, pageWidth - margin * 2, 8, "F"); }
     const values = [
       index + 1,
-      format(new Date(order.createdAtClient), "dd/MM/yy"),
+      format(new Date(dateByOrderId?.[order.id] || order.createdAtClient), "dd/MM/yy"),
       order.orderCode,
       order.customer.name,
       order.customer.mobile1,
       order.customer.mobile2 || "-",
       order.deliveryConfirmation ? order.deliveryConfirmation.parcelWeight.toFixed(2) : "-",
-      order.deliveryCharge > 0 ? order.deliveryCharge.toFixed(2) : "-",
+      reportTrackingNumber(order),
       order.deliveryConfirmation ? order.deliveryConfirmation.value.toFixed(2) : "-",
     ];
     columns.forEach((column, columnIndex) => doc.text(fit(values[columnIndex], column.width), column.right ? column.x + column.width - 2 : column.x + 2, y + 5.2, column.right ? { align: "right" } : undefined));

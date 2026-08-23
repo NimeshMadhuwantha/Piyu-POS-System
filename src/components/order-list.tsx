@@ -24,7 +24,7 @@ function OrderActions({ order, printing, printOrder, openDelivery, viewOnly = fa
   </div>;
 }
 
-export function OrderList({ orders, showWeight = false, viewOnlyActions = false }: { orders: Order[]; showWeight?: boolean; viewOnlyActions?: boolean }) {
+export function OrderList({ orders, showWeight = false, viewOnlyActions = false, displayDateByOrderId, displayDateLabel }: { orders: Order[]; showWeight?: boolean; viewOnlyActions?: boolean; displayDateByOrderId?: Record<string, string | null>; displayDateLabel?: string }) {
   const { user } = useApp();
   const [visibleCount, setVisibleCount] = useState(RECORD_PAGE_SIZE);
   const [settings, setSettings] = useState<BusinessSettings>({ businessName: "Piyu POS", phone: "", address: "", receiptWidth: "80mm", footer: "Thank you!" });
@@ -84,13 +84,13 @@ export function OrderList({ orders, showWeight = false, viewOnlyActions = false 
   const visibleOrders = orders.slice(0, visibleCount);
   return <>
     <div className="card desktop-table table-wrap"><table className="table order-table"><thead><tr><th>Order / Date</th><th>Customer</th><th>Total</th>{showWeight && <th>Total weight</th>}<th>Shipping</th><th>Payment</th><th>Status</th><th>Sync</th><th className="no-print">Actions</th></tr></thead><tbody>{visibleOrders.map(order => <tr key={order.id}>
-      <td><Link href={`/orders/${order.id}`}><b>{order.orderCode}</b></Link><div className="muted">{format(new Date(order.createdAtClient), "dd MMM yyyy, h:mm a")}</div></td>
+      <td><Link href={`/orders/${order.id}`}><b>{order.orderCode}</b></Link><div className="muted">{format(new Date(displayDateByOrderId?.[order.id] || order.createdAtClient), "dd MMM yyyy, h:mm a")}{displayDateByOrderId && displayDateLabel ? ` · ${displayDateLabel}` : ""}</div></td>
       <td>{order.customer.name}<div className="muted">{order.customer.mobile1}</div></td>
       <td>{formatLKR(order.grandTotal)}</td>{showWeight && <td>{orderTotalWeight(order).toLocaleString("en-LK", { maximumFractionDigits: 2 })} g</td>}<td>{order.shipping.method}</td>
       <td>{order.payment.method}</td><td><StatusBadge value={order.orderStatus}/></td>
       <td>{order.pending ? <span className="sync-waiting">Saved locally</span> : "Synced"}</td><td className="no-print"><OrderActions order={order} printing={printingOrderId === order.id} printOrder={printOrder} openDelivery={openDelivery} viewOnly={viewOnlyActions}/></td>
     </tr>)}</tbody></table></div>
-    <div className="mobile-cards">{visibleOrders.map(order => <article key={order.id} className="card"><div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><b>{order.orderCode}</b><StatusBadge value={order.orderStatus}/></div><h3 style={{ margin: "12px 0 3px" }}>{order.customer.name}</h3><div className="muted">{order.customer.mobile1}</div><div style={{ display: "flex", justifyContent: "space-between", marginTop: 14 }}><span>{format(new Date(order.createdAtClient), "dd MMM, h:mm a")}</span><b>{formatLKR(order.grandTotal)}</b></div>{showWeight && <div className="muted" style={{ marginTop: 7 }}>Total weight: <b>{orderTotalWeight(order).toLocaleString("en-LK", { maximumFractionDigits: 2 })} g</b></div>}{order.pending && <div className="sync-waiting" style={{ fontSize: 12, marginTop: 8 }}>Saved locally - waiting to sync</div>}<OrderActions order={order} printing={printingOrderId === order.id} printOrder={printOrder} openDelivery={openDelivery} viewOnly={viewOnlyActions}/></article>)}</div>
+    <div className="mobile-cards">{visibleOrders.map(order => <article key={order.id} className="card"><div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><b>{order.orderCode}</b><StatusBadge value={order.orderStatus}/></div><h3 style={{ margin: "12px 0 3px" }}>{order.customer.name}</h3><div className="muted">{order.customer.mobile1}</div><div style={{ display: "flex", justifyContent: "space-between", marginTop: 14 }}><span>{format(new Date(displayDateByOrderId?.[order.id] || order.createdAtClient), "dd MMM, h:mm a")}{displayDateByOrderId && displayDateLabel ? ` · ${displayDateLabel}` : ""}</span><b>{formatLKR(order.grandTotal)}</b></div>{showWeight && <div className="muted" style={{ marginTop: 7 }}>Total weight: <b>{orderTotalWeight(order).toLocaleString("en-LK", { maximumFractionDigits: 2 })} g</b></div>}{order.pending && <div className="sync-waiting" style={{ fontSize: 12, marginTop: 8 }}>Saved locally - waiting to sync</div>}<OrderActions order={order} printing={printingOrderId === order.id} printOrder={printOrder} openDelivery={openDelivery} viewOnly={viewOnlyActions}/></article>)}</div>
     <ViewMore shown={visibleOrders.length} total={orders.length} onMore={() => setVisibleCount(count => count + RECORD_PAGE_SIZE)}/>
     {printError && <p className="form-error no-print" role="alert">{printError}</p>}
     {deliveryError && !deliveryOrder && <p className="form-error no-print" role="alert">{deliveryError}</p>}
