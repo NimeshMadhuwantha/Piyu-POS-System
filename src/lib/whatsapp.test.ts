@@ -25,9 +25,11 @@ describe("delivered WhatsApp invoice", () => {
     expect(message).toContain("0711111111 / 0777777777");
     expect(message).toContain("1. Rice x 2");
     expect(message).not.toContain("Rice (Large)");
-    expect(message).toContain("Tracking number: TRACK-123");
-    expect(message).toContain("Weight: 1,250 g");
-    expect(message).toContain("Deliver Paid");
+    expect(message).toContain("▶️ Item list");
+    expect(message).toContain("▶️ Tracking number: TRACK-123");
+    expect(message).toContain("▶️ Order No : FC3885A");
+    expect(message).toContain("▶️ Weight: 1,250 g");
+    expect(message).toContain("▶️ Deliver Paid");
   });
 
   it("omits Deliver Paid when the checkbox is off", () => {
