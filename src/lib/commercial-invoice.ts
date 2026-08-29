@@ -124,7 +124,7 @@ export async function createCommercialInvoicePdf(order: Order, settings: Busines
   doc.setTextColor(...INK);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
-  doc.text(["103/B,", "Middeniya,", "Sri Lanka."], pageWidth - margin, 22, { align: "right", lineHeightFactor: 1.35 });
+  doc.text(["Kudagalara,", "Middeniya,", "Sri Lanka."], pageWidth - margin, 22, { align: "right", lineHeightFactor: 1.35 });
 
   doc.setFillColor(...MAROON);
   doc.roundedRect(margin, 41, contentWidth, 13, 1.5, 1.5, "F");
@@ -163,7 +163,7 @@ export async function createCommercialInvoicePdf(order: Order, settings: Busines
   doc.text("PIYU PRODUCTS", margin + 4, partyY + 14);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
-  doc.text(["103/B, Middeniya, Sri Lanka.", `Tel/WhatsApp: ${phone}`, `Email: ${email}`], margin + 4, partyY + 19, { lineHeightFactor: 1.45 });
+  doc.text(["Kudagalara, Middeniya, Sri Lanka.", `Tel/WhatsApp: ${phone}`, `Email: ${email}`], margin + 4, partyY + 19, { lineHeightFactor: 1.45 });
 
   const shipX = margin + partyWidth + partyGap + 4;
   doc.setFont("helvetica", "bold");
