@@ -2,6 +2,7 @@ export type OrderStatus = "New" | "Pending" | "Confirmed" | "Processing" | "Pack
 export type PaymentStatus = "Pending" | "Paid" | "Partially Paid";
 export type ShippingMethod = string;
 export type PaymentMethod = "Cash on Delivery (COD)" | "Cash" | "Bank Transfer" | "Online Payment" | "Other";
+export type DiscountType = "percent" | "amount";
 
 export interface CustomerSnapshot {
   name: string; email?: string; mobile1: string; mobile2?: string; whatsappNumber?: string; address1: string; address2?: string;
@@ -12,7 +13,7 @@ export interface Customer extends CustomerSnapshot {
 }
 export interface OrderItem {
   id: string; name: string; variant?: string; quantity: number; unit: string; weight?: number;
-  unitPrice: number; discount: number; subtotal: number; categoryId?: string; catalogItemId?: string;
+  unitPrice: number; discount: number; discountType?: DiscountType; subtotal: number; categoryId?: string; catalogItemId?: string;
 }
 export interface ShippingDetails {
   method: ShippingMethod; courier?: string; trackingNumber?: string; parcelWeight?: number; note?: string; methodId?: string;
