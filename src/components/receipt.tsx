@@ -93,8 +93,14 @@ function ItemList({ order, printedAt }: { order: Order; printedAt?: string }) {
     .join(" ");
   const addressLine = [shortAddress, order.customer.city, order.customer.district].filter(hasText).join(", ");
   const printTime = printedAt ? new Date(printedAt) : new Date(order.createdAtClient);
+  const hasNotes = hasText(order.customer.note) || hasText(order.shipping.note) || hasText(order.notes);
   return <>
     <div className="item-list-meta"><div className="item-list-client"><b>{order.orderCode}</b><strong>{shortName}</strong>{addressLine && <span>{addressLine}</span>}<time>Printed: {format(printTime, "dd/MM/yyyy HH:mm")}</time></div><div className="item-list-boxes"><span><b>Delivery Date :</b><i/></span><span><b>Weight :</b><i className="item-list-weight-box"><small>g</small></i></span></div></div>
+    {hasNotes && <section className="receipt-section receipt-note">
+      {hasText(order.customer.note) && <span><b>Customer note:</b> {order.customer.note}</span>}
+      {hasText(order.shipping.note) && <span><b>Shipping note:</b> {order.shipping.note}</span>}
+      {hasText(order.notes) && <span><b>Order notes:</b> {order.notes}</span>}
+    </section>}
     <table className="receipt-item-list">
       <thead><tr><th>No.</th><th>Item</th><th>Unit weight</th><th>Qty</th></tr></thead>
       <tbody>{order.items.map((item, index) => {
