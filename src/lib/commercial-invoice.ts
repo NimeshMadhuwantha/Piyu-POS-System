@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import { downloadBlob } from "@/lib/export";
+import { calculateLineSubtotal, formatItemDiscount } from "./calculations";
 import type { BusinessSettings, CommercialInvoiceDetails, Order } from "@/types";
 import type { jsPDF as JsPdf } from "jspdf";
 
@@ -82,7 +83,8 @@ export async function createCommercialInvoicePdf(order: Order, settings: Busines
   const phone = settings.phone?.trim() || "-";
   const email = "piyuproduct@gmail.com";
   const money = (value: number) => value.toLocaleString("en-LK", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const goodsTotal = order.items.reduce((sum, item) => sum + Math.max(0, item.quantity) * Math.max(0, item.unitPrice), 0);
+  const hasItemDiscounts = order.items.some(item => item.discount > 0);
+  const goodsTotal = order.items.reduce((sum, item) => sum + calculateLineSubtotal(item.quantity, item.unitPrice, item.discount, item.discountType), 0);
   const totalAmount = goodsTotal + details.shippingCharges;
   const customerAddress = [order.customer.address1, order.customer.address2, order.customer.city, order.customer.district].filter(value => value?.trim()).join(", ");
   const customerMobiles = [order.customer.mobile1, order.customer.mobile2].filter(value => value?.trim()).join(" / ");
@@ -240,13 +242,14 @@ export async function createCommercialInvoicePdf(order: Order, settings: Busines
   autoTable(doc, {
     startY: 189,
     margin: { top: 22, left: margin, right: margin, bottom: 37 },
-    head: [["No", "Item Name", "Unit Weight", "Qty", "Unit Price (LKR)"]],
+    head: [hasItemDiscounts ? ["No", "Item Name", "Unit Weight", "Qty", "Unit Price (LKR)", "Discount", "Line Total"] : ["No", "Item Name", "Unit Weight", "Qty", "Unit Price (LKR)"]],
     body: order.items.map((item, index) => [
       index + 1,
       `${item.name}${item.variant ? ` (${item.variant})` : ""}`,
       item.weight && item.weight > 0 ? `${money(item.weight)} g` : "-",
       item.quantity,
       money(item.unitPrice),
+      ...(hasItemDiscounts ? [formatItemDiscount(item), money(calculateLineSubtotal(item.quantity, item.unitPrice, item.discount, item.discountType))] : []),
     ]),
     theme: "grid",
     styles: { font: "helvetica", fontSize: 7, cellPadding: 2, textColor: INK, lineColor: LINE, lineWidth: 0.15, valign: "middle" },
@@ -255,9 +258,11 @@ export async function createCommercialInvoicePdf(order: Order, settings: Busines
     columnStyles: {
       0: { cellWidth: 12, halign: "center" },
       1: { cellWidth: "auto" },
-      2: { cellWidth: 28, halign: "right" },
-      3: { cellWidth: 16, halign: "center" },
-      4: { cellWidth: 34, halign: "right" },
+      2: { cellWidth: 24, halign: "right" },
+      3: { cellWidth: 13, halign: "center" },
+      4: { cellWidth: hasItemDiscounts ? 28 : 34, halign: "right" },
+      5: { cellWidth: 24, halign: "right" },
+      6: { cellWidth: 28, halign: "right" },
     },
     didDrawPage: data => {
       if (data.pageNumber > 1) {

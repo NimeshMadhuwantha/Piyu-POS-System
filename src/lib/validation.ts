@@ -5,7 +5,9 @@ const nonNegativeNumber = z.number().min(0);
 export const orderItemSchema = z.object({
   id: z.string(), name: z.string().trim().min(1, "Select an item"), variant: z.string().optional(), categoryId: z.string().optional(), catalogItemId: z.string().optional(),
   quantity: z.number().int("Quantity must be a whole number").min(1, "Quantity must be at least 1"), unit: z.string().min(1),
-  weight: nonNegativeNumber.optional(), unitPrice: nonNegativeNumber, discount: z.number().min(0).max(100, "Discount cannot exceed 100%"), subtotal: nonNegativeNumber,
+  weight: nonNegativeNumber.optional(), unitPrice: nonNegativeNumber, discount: nonNegativeNumber, discountType: z.enum(["percent", "amount"]).optional(), subtotal: nonNegativeNumber,
+}).superRefine((item, context) => {
+  if ((item.discountType || "percent") === "percent" && item.discount > 100) context.addIssue({ code: "custom", path: ["discount"], message: "Discount cannot exceed 100%" });
 });
 export const orderFormSchema = z.object({
   orderId: z.object({

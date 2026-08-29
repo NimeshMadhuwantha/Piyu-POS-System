@@ -1,7 +1,7 @@
 /* The print-only logo must load eagerly while its host is hidden. */
 /* eslint-disable @next/next/no-img-element */
 import { format } from "date-fns";
-import { calculateLineWeight, formatLKR, orderTotalWeight } from "@/lib/calculations";
+import { calculateLineWeight, formatItemDiscount, formatLKR, orderTotalWeight } from "@/lib/calculations";
 import type { BusinessSettings, Order } from "@/types";
 
 export type ReceiptType = "customer" | "shipping" | "full";
@@ -38,6 +38,7 @@ export function Receipt({ order, type, settings, printedAt }: { order: Order; ty
 }
 
 function FullBill({ order, address, totalWeight }: { order: Order; address: string; totalWeight: number }) {
+  const hasItemDiscounts = order.items.some(item => item.discount > 0);
   return <>
     <section className="receipt-section receipt-customer">
       <b>{order.customer.name}</b>
@@ -48,13 +49,14 @@ function FullBill({ order, address, totalWeight }: { order: Order; address: stri
     </section>
 
     <table className="receipt-items">
-      <thead><tr><th>No.</th><th>Item</th><th>Weight</th><th>Price (LKR)</th></tr></thead>
+      <thead><tr><th>No.</th><th>Item</th><th>Weight</th>{hasItemDiscounts && <th>Discount</th>}<th>Price (LKR)</th></tr></thead>
       <tbody>{order.items.map((item, index) => {
         const lineWeight = calculateLineWeight(item.weight, item.quantity);
         return <tr key={item.id}>
           <td>{index + 1}</td>
           <td>{item.name} x {item.quantity}</td>
           <td>{lineWeight > 0 ? formatWeight(lineWeight) : ""}</td>
+          {hasItemDiscounts && <td>{formatItemDiscount(item)}</td>}
           <td>{formatAmount(item.subtotal)}</td>
         </tr>;
       })}</tbody>
