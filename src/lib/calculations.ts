@@ -15,12 +15,28 @@ export function calculateLineSubtotal(quantity: number, unitPrice: number, disco
   return money(gross - discountAmount);
 }
 
+export function calculateOrderSummary(items: Pick<OrderItem, "quantity" | "unitPrice" | "discount" | "discountType">[], orderDiscount = 0, deliveryCharge = 0) {
+  const totalItemCount = items.length;
+  const totalQty = items.reduce((sum, item) => sum + safe(item.quantity), 0);
+  const totalUnitPrice = money(items.reduce((sum, item) => sum + safe(item.quantity) * safe(item.unitPrice), 0));
+  const totalDiscount = money(items.reduce((sum, item) => {
+    const gross = safe(item.quantity) * safe(item.unitPrice);
+    const discountAmount = item.discountType === "amount"
+      ? Math.min(gross, safe(item.discount))
+      : gross * Math.min(100, safe(item.discount)) / 100;
+    return sum + discountAmount;
+  }, 0));
+  const itemsSubtotal = money(Math.max(0, totalUnitPrice - totalDiscount));
+  const shippingCost = money(safe(deliveryCharge));
+  const grandTotal = money(Math.max(0, itemsSubtotal - safe(orderDiscount) + shippingCost));
+  return { totalItemCount, totalQty, totalUnitPrice, totalDiscount, itemsSubtotal, shippingCost, orderDiscount: money(safe(orderDiscount)), grandTotal };
+}
+
 export function calculateTotals(items: Pick<OrderItem, "quantity" | "unitPrice" | "discount" | "discountType">[], orderDiscount = 0, deliveryCharge = 0, amountPaid = 0, paymentMethod?: PaymentMethod) {
-  const itemsSubtotal = money(items.reduce((sum, item) => sum + calculateLineSubtotal(item.quantity, item.unitPrice, item.discount, item.discountType), 0));
-  const grandTotal = money(Math.max(0, itemsSubtotal - safe(orderDiscount) + safe(deliveryCharge)));
-  const paid = money(Math.min(grandTotal, safe(amountPaid)));
-  const balance = money(Math.max(0, grandTotal - paid));
-  return { itemsSubtotal, grandTotal, amountPaid: paid, balance, codAmount: paymentMethod === "Cash on Delivery (COD)" ? balance : 0 };
+  const summary = calculateOrderSummary(items, orderDiscount, deliveryCharge);
+  const paid = money(Math.min(summary.grandTotal, safe(amountPaid)));
+  const balance = money(Math.max(0, summary.grandTotal - paid));
+  return { itemsSubtotal: summary.itemsSubtotal, grandTotal: summary.grandTotal, amountPaid: paid, balance, codAmount: paymentMethod === "Cash on Delivery (COD)" ? balance : 0 };
 }
 
 export function formatLKR(value: number) {

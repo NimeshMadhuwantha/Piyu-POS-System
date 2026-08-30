@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { downloadBlob } from "@/lib/export";
-import { calculateLineSubtotal, formatItemDiscount } from "./calculations";
+import { calculateLineSubtotal, calculateOrderSummary } from "./calculations";
 import type { BusinessSettings, CommercialInvoiceDetails, Order } from "@/types";
 import type { jsPDF as JsPdf } from "jspdf";
 
@@ -83,9 +83,7 @@ export async function createCommercialInvoicePdf(order: Order, settings: Busines
   const phone = settings.phone?.trim() || "-";
   const email = "piyuproduct@gmail.com";
   const money = (value: number) => value.toLocaleString("en-LK", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const hasItemDiscounts = order.items.some(item => item.discount > 0);
-  const goodsTotal = order.items.reduce((sum, item) => sum + calculateLineSubtotal(item.quantity, item.unitPrice, item.discount, item.discountType), 0);
-  const totalAmount = goodsTotal + details.shippingCharges;
+  const summary = calculateOrderSummary(order.items, order.orderDiscount, details.shippingCharges);
   const customerAddress = [order.customer.address1, order.customer.address2, order.customer.city, order.customer.district].filter(value => value?.trim()).join(", ");
   const customerMobiles = [order.customer.mobile1, order.customer.mobile2].filter(value => value?.trim()).join(" / ");
 
@@ -97,9 +95,12 @@ export async function createCommercialInvoicePdf(order: Order, settings: Busines
 
   doc.setFillColor(...MAROON);
   doc.rect(0, 0, pageWidth, 5, "F");
-  doc.setDrawColor(...MAROON);
-  doc.setLineWidth(0.45);
-  doc.roundedRect(8, 8, pageWidth - 16, 281, 2, 2, "S");
+  const drawPageBorder = () => {
+    doc.setDrawColor(...MAROON);
+    doc.setLineWidth(0.45);
+    doc.roundedRect(8, 8, pageWidth - 16, 281, 2, 2, "S");
+  };
+  drawPageBorder();
 
   try {
     const response = await fetch("/icons/piyu%20logo.png");
@@ -242,14 +243,14 @@ export async function createCommercialInvoicePdf(order: Order, settings: Busines
   autoTable(doc, {
     startY: 189,
     margin: { top: 22, left: margin, right: margin, bottom: 37 },
-    head: [hasItemDiscounts ? ["No", "Item Name", "Unit Weight", "Qty", "Unit Price (LKR)", "Discount", "Line Total"] : ["No", "Item Name", "Unit Weight", "Qty", "Unit Price (LKR)"]],
+    head: [["No", "Item Name", "Unit Weight", "Qty", "Unit Price (LKR)", "Line Total"]],
     body: order.items.map((item, index) => [
       index + 1,
       `${item.name}${item.variant ? ` (${item.variant})` : ""}`,
       item.weight && item.weight > 0 ? `${money(item.weight)} g` : "-",
       item.quantity,
       money(item.unitPrice),
-      ...(hasItemDiscounts ? [formatItemDiscount(item), money(calculateLineSubtotal(item.quantity, item.unitPrice, item.discount, item.discountType))] : []),
+      money(calculateLineSubtotal(item.quantity, item.unitPrice, item.discount, item.discountType)),
     ]),
     theme: "grid",
     styles: { font: "helvetica", fontSize: 7, cellPadding: 2, textColor: INK, lineColor: LINE, lineWidth: 0.15, valign: "middle" },
@@ -260,11 +261,11 @@ export async function createCommercialInvoicePdf(order: Order, settings: Busines
       1: { cellWidth: "auto" },
       2: { cellWidth: 24, halign: "right" },
       3: { cellWidth: 13, halign: "center" },
-      4: { cellWidth: hasItemDiscounts ? 28 : 34, halign: "right" },
-      5: { cellWidth: 24, halign: "right" },
-      6: { cellWidth: 28, halign: "right" },
+      4: { cellWidth: 30, halign: "right" },
+      5: { cellWidth: 28, halign: "right" },
     },
     didDrawPage: data => {
+      drawPageBorder();
       if (data.pageNumber > 1) {
         doc.setFillColor(...MAROON);
         doc.rect(0, 0, pageWidth, 5, "F");
@@ -282,32 +283,38 @@ export async function createCommercialInvoicePdf(order: Order, settings: Busines
     doc.addPage();
     doc.setFillColor(...MAROON);
     doc.rect(0, 0, pageWidth, 5, "F");
+    drawPageBorder();
     totalsY = 17;
   }
   const totalsX = pageWidth - margin - 74;
   doc.setFillColor(255, 248, 250);
   doc.setDrawColor(...LINE);
-  doc.roundedRect(totalsX, totalsY, 74, 25, 1.5, 1.5, "FD");
+  doc.roundedRect(totalsX, totalsY, 74, 40, 1.5, 1.5, "FD");
   doc.setTextColor(...INK);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
-  doc.text("Items total", totalsX + 4, totalsY + 7);
-  doc.text(`LKR ${money(goodsTotal)}`, totalsX + 70, totalsY + 7, { align: "right" });
-  doc.text("Shipping charges", totalsX + 4, totalsY + 14);
-  doc.text(`LKR ${money(details.shippingCharges)}`, totalsX + 70, totalsY + 14, { align: "right" });
+  doc.text("Total unit price", totalsX + 4, totalsY + 7);
+  doc.text(`LKR ${money(summary.totalUnitPrice)}`, totalsX + 70, totalsY + 7, { align: "right" });
+  doc.text("Total Discount", totalsX + 4, totalsY + 14);
+  doc.text(`LKR ${money(summary.totalDiscount)}`, totalsX + 70, totalsY + 14, { align: "right" });
+  doc.text("Items subtotal", totalsX + 4, totalsY + 21);
+  doc.text(`LKR ${money(summary.itemsSubtotal)}`, totalsX + 70, totalsY + 21, { align: "right" });
+  doc.text("Delivery", totalsX + 4, totalsY + 28);
+  doc.text(`LKR ${money(summary.shippingCost)}`, totalsX + 70, totalsY + 28, { align: "right" });
   doc.setDrawColor(...MAROON);
-  doc.line(totalsX + 4, totalsY + 17, totalsX + 70, totalsY + 17);
+  doc.line(totalsX + 4, totalsY + 31, totalsX + 70, totalsY + 31);
   doc.setTextColor(...MAROON);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
-  doc.text("TOTAL AMOUNT", totalsX + 4, totalsY + 22);
-  doc.text(`LKR ${money(totalAmount)}`, totalsX + 70, totalsY + 22, { align: "right" });
+  doc.text("Grand Total", totalsX + 4, totalsY + 37);
+  doc.text(`LKR ${money(summary.grandTotal)}`, totalsX + 70, totalsY + 37, { align: "right" });
 
-  let certificationY = totalsY + 32;
+  let certificationY = totalsY + 48;
   if (certificationY > 274) {
     doc.addPage();
     doc.setFillColor(...MAROON);
     doc.rect(0, 0, pageWidth, 5, "F");
+    drawPageBorder();
     certificationY = 20;
   }
   doc.setTextColor(...INK);
