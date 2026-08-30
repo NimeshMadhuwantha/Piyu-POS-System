@@ -95,9 +95,12 @@ export async function createCommercialInvoicePdf(order: Order, settings: Busines
 
   doc.setFillColor(...MAROON);
   doc.rect(0, 0, pageWidth, 5, "F");
-  doc.setDrawColor(...MAROON);
-  doc.setLineWidth(0.45);
-  doc.roundedRect(8, 8, pageWidth - 16, 281, 2, 2, "S");
+  const drawPageBorder = () => {
+    doc.setDrawColor(...MAROON);
+    doc.setLineWidth(0.45);
+    doc.roundedRect(8, 8, pageWidth - 16, 281, 2, 2, "S");
+  };
+  drawPageBorder();
 
   try {
     const response = await fetch("/icons/piyu%20logo.png");
@@ -262,6 +265,7 @@ export async function createCommercialInvoicePdf(order: Order, settings: Busines
       5: { cellWidth: 28, halign: "right" },
     },
     didDrawPage: data => {
+      drawPageBorder();
       if (data.pageNumber > 1) {
         doc.setFillColor(...MAROON);
         doc.rect(0, 0, pageWidth, 5, "F");
@@ -279,6 +283,7 @@ export async function createCommercialInvoicePdf(order: Order, settings: Busines
     doc.addPage();
     doc.setFillColor(...MAROON);
     doc.rect(0, 0, pageWidth, 5, "F");
+    drawPageBorder();
     totalsY = 17;
   }
   const totalsX = pageWidth - margin - 74;
@@ -304,11 +309,12 @@ export async function createCommercialInvoicePdf(order: Order, settings: Busines
   doc.text("Grand Total", totalsX + 4, totalsY + 37);
   doc.text(`LKR ${money(summary.grandTotal)}`, totalsX + 70, totalsY + 37, { align: "right" });
 
-  let certificationY = totalsY + 32;
+  let certificationY = totalsY + 48;
   if (certificationY > 274) {
     doc.addPage();
     doc.setFillColor(...MAROON);
     doc.rect(0, 0, pageWidth, 5, "F");
+    drawPageBorder();
     certificationY = 20;
   }
   doc.setTextColor(...INK);

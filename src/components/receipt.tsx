@@ -100,7 +100,7 @@ function ItemList({ order, printedAt }: { order: Order; printedAt?: string }) {
   const hasNotes = hasText(order.customer.note) || hasText(order.shipping.note) || hasText(order.notes);
   const summary = calculateOrderSummary(order.items, order.orderDiscount, order.deliveryCharge);
   return <>
-    <div className="item-list-meta"><div className="item-list-client"><b>{order.orderCode}</b><strong>{shortName}</strong>{addressLine && <span>{addressLine}</span>}<div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 4 }}><time>Printed: {format(printTime, "dd/MM/yyyy HH:mm")}</time>{hasText(order.requestDate) && <time>Request Date: {requestDate}</time>}</div></div><div className="item-list-boxes"><span><b>Delivery Date :</b><i/></span><span><b>Weight :</b><i className="item-list-weight-box"><small>g</small></i></span></div></div>
+    <div className="item-list-meta"><div className="item-list-client"><b>{order.orderCode}</b><strong>{shortName}</strong>{addressLine && <span>{addressLine}</span>}<div className="item-list-meta-row"><time>Printed: {format(printTime, "dd/MM/yyyy HH:mm")}</time>{hasText(order.requestDate) && <time className="item-list-request-date">Request Date: {requestDate}</time>}</div></div><div className="item-list-boxes"><span><b>Delivery Date :</b><i/></span><span><b>Weight :</b><i className="item-list-weight-box"><small>g</small></i></span></div></div>
     {hasNotes && <section className="receipt-section receipt-note">
       {hasText(order.customer.note) && <span><b>Customer note:</b> {order.customer.note}</span>}
       {hasText(order.shipping.note) && <span><b>Shipping note:</b> {order.shipping.note}</span>}
