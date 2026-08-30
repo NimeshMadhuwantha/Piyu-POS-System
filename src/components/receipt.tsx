@@ -1,7 +1,7 @@
 /* The print-only logo must load eagerly while its host is hidden. */
 /* eslint-disable @next/next/no-img-element */
 import { format } from "date-fns";
-import { calculateLineWeight, formatItemDiscount, formatLKR, orderTotalWeight } from "@/lib/calculations";
+import { calculateLineWeight, calculateOrderSummary, formatLKR, orderTotalWeight } from "@/lib/calculations";
 import type { BusinessSettings, Order } from "@/types";
 
 export type ReceiptType = "customer" | "shipping" | "full";
@@ -38,7 +38,7 @@ export function Receipt({ order, type, settings, printedAt }: { order: Order; ty
 }
 
 function FullBill({ order, address, totalWeight }: { order: Order; address: string; totalWeight: number }) {
-  const hasItemDiscounts = order.items.some(item => item.discount > 0);
+  const summary = calculateOrderSummary(order.items, order.orderDiscount, order.deliveryCharge);
   return <>
     <section className="receipt-section receipt-customer">
       <b>{order.customer.name}</b>
@@ -49,25 +49,26 @@ function FullBill({ order, address, totalWeight }: { order: Order; address: stri
     </section>
 
     <table className="receipt-items">
-      <thead><tr><th>No.</th><th>Item</th><th>Weight</th>{hasItemDiscounts && <th>Discount</th>}<th>Price (LKR)</th></tr></thead>
+      <thead><tr><th>No.</th><th>Item</th><th>Weight</th><th>Price (LKR)</th></tr></thead>
       <tbody>{order.items.map((item, index) => {
         const lineWeight = calculateLineWeight(item.weight, item.quantity);
         return <tr key={item.id}>
           <td>{index + 1}</td>
           <td>{item.name} x {item.quantity}</td>
           <td>{lineWeight > 0 ? formatWeight(lineWeight) : ""}</td>
-          {hasItemDiscounts && <td>{formatItemDiscount(item)}</td>}
           <td>{formatAmount(item.subtotal)}</td>
         </tr>;
       })}</tbody>
     </table>
     {totalWeight > 0 && <div className="receipt-total-weight"><span>Net weight</span><b>{formatWeight(totalWeight)}</b></div>}
+    <div className="receipt-total-weight" style={{ marginTop: 4 }}><span>Total QTY</span><b>{summary.totalQty}</b></div>
 
     <div className="receipt-totals">
-      <span>Items subtotal</span><b>{formatAmount(order.itemsSubtotal)}</b>
-      {order.orderDiscount > 0 && <><span>Discount</span><b>-{formatAmount(order.orderDiscount)}</b></>}
-      {order.deliveryCharge > 0 && <><span>Delivery</span><b>{formatAmount(order.deliveryCharge)}</b></>}
-      <strong>Grand total</strong><strong>{formatAmount(order.grandTotal)}</strong>
+      <span>Total unit price</span><b>{formatAmount(summary.totalUnitPrice)}</b>
+      <span>Total Discount</span><b>{formatAmount(summary.totalDiscount)}</b>
+      <span>Items subtotal</span><b>{formatAmount(summary.itemsSubtotal)}</b>
+      <span>Delivery</span><b>{formatAmount(summary.shippingCost)}</b>
+      <strong>Grand total</strong><strong>{formatAmount(summary.grandTotal)}</strong>
       {order.amountPaid > 0 && <><span>Paid</span><b>{formatAmount(order.amountPaid)}</b></>}
     </div>
 
@@ -95,9 +96,11 @@ function ItemList({ order, printedAt }: { order: Order; printedAt?: string }) {
     .join(" ");
   const addressLine = [shortAddress, order.customer.city, order.customer.district].filter(hasText).join(", ");
   const printTime = printedAt ? new Date(printedAt) : new Date(order.createdAtClient);
+  const requestDate = hasText(order.requestDate) ? format(new Date(`${order.requestDate}T00:00:00`), "dd/MM/yyyy") : "-";
   const hasNotes = hasText(order.customer.note) || hasText(order.shipping.note) || hasText(order.notes);
+  const summary = calculateOrderSummary(order.items, order.orderDiscount, order.deliveryCharge);
   return <>
-    <div className="item-list-meta"><div className="item-list-client"><b>{order.orderCode}</b><strong>{shortName}</strong>{addressLine && <span>{addressLine}</span>}<time>Printed: {format(printTime, "dd/MM/yyyy HH:mm")}</time></div><div className="item-list-boxes"><span><b>Delivery Date :</b><i/></span><span><b>Weight :</b><i className="item-list-weight-box"><small>g</small></i></span></div></div>
+    <div className="item-list-meta"><div className="item-list-client"><b>{order.orderCode}</b><strong>{shortName}</strong>{addressLine && <span>{addressLine}</span>}<div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 4 }}><time>Printed: {format(printTime, "dd/MM/yyyy HH:mm")}</time>{hasText(order.requestDate) && <time>Request Date: {requestDate}</time>}</div></div><div className="item-list-boxes"><span><b>Delivery Date :</b><i/></span><span><b>Weight :</b><i className="item-list-weight-box"><small>g</small></i></span></div></div>
     {hasNotes && <section className="receipt-section receipt-note">
       {hasText(order.customer.note) && <span><b>Customer note:</b> {order.customer.note}</span>}
       {hasText(order.shipping.note) && <span><b>Shipping note:</b> {order.shipping.note}</span>}
@@ -111,6 +114,7 @@ function ItemList({ order, printedAt }: { order: Order; printedAt?: string }) {
       })}</tbody>
     </table>
     <div className="item-list-total"><span>Total price</span><b>{formatLKR(order.grandTotal)}</b></div>
+    <div className="item-list-total" style={{ marginTop: 4 }}><span>Total QTY</span><b>{summary.totalQty}</b></div>
   </>;
 }
 
