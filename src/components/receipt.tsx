@@ -2,6 +2,7 @@
 /* eslint-disable @next/next/no-img-element */
 import { format } from "date-fns";
 import { calculateLineWeight, calculateOrderSummary, formatLKR, orderTotalWeight } from "@/lib/calculations";
+import { getShippingBillHeaderDate } from "@/lib/shipping-bill-date";
 import type { BusinessSettings, Order } from "@/types";
 
 export type ReceiptType = "customer" | "shipping" | "full";
@@ -120,7 +121,7 @@ function ItemList({ order, printedAt }: { order: Order; printedAt?: string }) {
 
 function ShippingBill({ order, address, settings }: { order: Order; address: string; settings: BusinessSettings }) {
   const delivery = order.deliveryConfirmation;
-  const deliveryDate = order.deliveryDate || ".......................";
+  const deliveryDate = getShippingBillHeaderDate(order);
   const mobileNumbers = [order.customer.mobile1, order.customer.mobile2].filter(hasText).join(" / ");
   return <div className="dispatch-label">
     <section className="dispatch-notice"><h1>පිසූ ආහාර පාර්සලයකි</h1><p>විදෙස්ගතවන අයෙකුට ලැබිය යුතු පාර්සලයක් බැවින් <b>{deliveryDate}</b> දින හෝ ඉන් පෙර අනිවාර්යයෙන් බාර දෙන්න.</p></section>
